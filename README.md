@@ -1,4 +1,4 @@
-# Algorithmic Stock Analyzer
+# Stock Market Analyzer Dashboard
 
 A stock research dashboard that pulls live data from Yahoo Finance, runs technical analysis, and tells you whether to buy, hold, or avoid — all from a single Python server with no API keys.
 
@@ -46,7 +46,7 @@ A stock research dashboard that pulls live data from Yahoo Finance, runs technic
 
 ```bash
 # 1. Clone the repo
-cd algorithmic-stock-analyzer
+cd stock-market-analyzer-dashboard
 
 # 2. Set up a virtual environment
 python3 -m venv venv
