@@ -288,15 +288,7 @@ function generateDetailedData(stock) {
                     ).join('')}
                 </div>
             </div>
-            <div style="height:250px;width:100%;"><canvas id="priceChart"></canvas></div>
-            ${stock.rsiDates && stock.rsiDates.length > 0 ? `
-            <div style="margin-top:0.8rem; padding-top:0.8rem; border-top:1px solid rgba(255,255,255,0.08);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.3rem;">
-                    <div style="font-size:0.75rem; color:#94a3b8; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">RSI (14) Oscillator</div>
-                    <div style="font-size:0.7rem; color:#64748b;"><span style="color:#f87171">70 = Overbought</span> <span style="margin:0 5px;">|</span> <span style="color:#4ade80">30 = Oversold</span></div>
-                </div>
-                <div style="height:110px;width:100%;"><canvas id="rsiChart"></canvas></div>
-            </div>` : ''}
+            <div style="height:280px;width:100%;"><canvas id="priceChart"></canvas></div>
         </div>`;
     }
 
@@ -636,25 +628,28 @@ function generateDetailedData(stock) {
             </div>
             <div>
                 <div style="font-size:0.68rem;color:#64748b;text-transform:uppercase;">Industry Moat Rank</div>
-                <div style="font-size:0.9rem;font-weight:700;color:#38bdf8;">Top Tier (Strong Moat)</div>
+                <div style="font-size:0.9rem;font-weight:700;color:${ob ? '#38bdf8' : '#64748b'};">${ob ? 'Strong Moat' : 'Not Rated'}</div>
             </div>
         </div>
     </div>`;
 
-    const catalystHTML = `
+    const catalystHTML = ob ? `
     <div class="detail-section" style="grid-column:1/-1;">
-        <h4>🔒 KEY CATALYSTS & MARKET MOAT</h4>
+        <h4>🔒 KEY CATALYSTS & COMPETITIVE MOAT</h4>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.6rem;">
             <div style="background:rgba(255,255,255,0.03);padding:1rem;border-radius:12px;border-left:3px solid #8b5cf6;">
-                <div style="font-size:0.75rem;color:#94a3b8;margin-bottom:0.3rem;text-transform:uppercase;">Business Moat & Order Book</div>
-                <div style="font-size:0.9rem;color:#e2e8f0;line-height:1.5;">Check company specific non-cancellable backlog (RPO), long-term strategic contracts, and ecosystem lock-in (e.g. CUDA for NVDA, Agentforce for CRM). Look for "take-or-pay" commitments that guarantee future revenue.</div>
+                <div style="font-size:0.75rem;color:#94a3b8;margin-bottom:0.3rem;text-transform:uppercase;">Competitive Moat</div>
+                <div style="font-size:0.9rem;color:#e2e8f0;line-height:1.5;">${ob.moat}</div>
+                <div style="font-size:0.82rem;color:#94a3b8;margin-top:0.6rem;line-height:1.4;"><strong style="color:#cbd5e1;">Contracts:</strong> ${ob.contract}</div>
+                <div style="font-size:0.82rem;color:#94a3b8;margin-top:0.3rem;line-height:1.4;"><strong style="color:#cbd5e1;">Financials:</strong> ${ob.finance}</div>
             </div>
             <div style="background:rgba(255,255,255,0.03);padding:1rem;border-radius:12px;border-left:3px solid #38bdf8;">
                 <div style="font-size:0.75rem;color:#94a3b8;margin-bottom:0.3rem;text-transform:uppercase;">Upcoming Volatility Events</div>
-                <div style="font-size:0.9rem;color:#e2e8f0;line-height:1.5;">Pay attention to the next earnings date, Fed interest rate decisions, and competitor product launches. High Institutional Ownership (>70%) provides a safety net during these volatile events.</div>
+                <div style="font-size:0.9rem;color:#e2e8f0;line-height:1.5;">${stock.nextEarningsDate ? `Next earnings on <strong>${new Date(stock.nextEarningsDate).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}</strong>. Expect elevated option premiums and potential gap moves.` : 'No upcoming earnings date available.'}</div>
+                <div style="font-size:0.82rem;color:#94a3b8;margin-top:0.6rem;line-height:1.4;">Institutional ownership ${stock.institutionalOwnership ? `at <strong style="color:#cbd5e1;">${(stock.institutionalOwnership * 100).toFixed(0)}%</strong> — ${stock.institutionalOwnership > 0.7 ? 'high institutional backing provides downside support.' : stock.institutionalOwnership > 0.4 ? 'moderate institutional interest.' : 'low institutional coverage — higher volatility risk.'}` : 'data not available.'}</div>
             </div>
         </div>
-    </div>`;
+    </div>` : '';
 
 
 
@@ -1008,86 +1003,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 });
-            }
-        }
-
-        // RSI Chart
-        if (stock.rsiDates && stock.rsiDates.length > 0) {
-            console.log("RSI Dates found. Attempting to initialize rsiChart...");
-            const rsiCanvas = document.getElementById('rsiChart');
-            if (rsiCanvas) {
-                console.log("rsiCanvas found in DOM. Initializing Chart...");
-                if (window.rsiChartInstance) window.rsiChartInstance.destroy();
-                
-                try {
-                    window.rsiChartInstance = new Chart(rsiCanvas.getContext('2d'), {
-                        type: 'line',
-                        data: {
-                            labels: stock.rsiDates,
-                            datasets: [{
-                                label: 'RSI (14)',
-                                data: stock.rsiValues,
-                                borderColor: 'rgba(96, 165, 250, 1)',
-                                borderWidth: 2,
-                                pointRadius: 0,
-                                fill: false,
-                                tension: 0.3
-                            }]
-                        },
-                        options: {
-                            responsive: true, 
-                            maintainAspectRatio: false,
-                            scales: {
-                                y: { 
-                                    min: 0, max: 100, 
-                                    ticks: { color: '#475569', callback: function(v) { return v + '%'; } }, 
-                                    grid: { color: 'rgba(255,255,255,0.04)' } 
-                                },
-                                x: { 
-                                    ticks: { color: '#475569', maxTicksLimit: 8, maxRotation: 0 }, 
-                                    grid: { display: false } 
-                                }
-                            },
-                            plugins: {
-                                legend: { display: false },
-                                annotation: {
-                                    annotations: {
-                                        overbought: { 
-                                            type: 'line', 
-                                            yMin: 70, yMax: 70, 
-                                            borderColor: 'rgba(248, 113, 113, 0.5)', 
-                                            borderWidth: 2, 
-                                            borderDash: [6,4], 
-                                            label: { 
-                                                content: 'Overbought (70)', 
-                                                display: true, 
-                                                position: 'end', 
-                                                color: 'rgba(248, 113, 113, 1)', 
-                                                font: { size: 10 } 
-                                            } 
-                                        },
-                                        oversold: { 
-                                            type: 'line', 
-                                            yMin: 30, yMax: 30, 
-                                            borderColor: 'rgba(74, 222, 128, 0.5)', 
-                                            borderWidth: 2, 
-                                            borderDash: [6,4], 
-                                            label: { 
-                                                content: 'Oversold (30)', 
-                                                display: true, 
-                                                position: 'end', 
-                                                color: 'rgba(74, 222, 128, 1)', 
-                                                font: { size: 10 } 
-                                            } 
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                } catch (e) {
-                    console.error("Failed to initialize RSI chart", e);
-                }
             }
         }
 

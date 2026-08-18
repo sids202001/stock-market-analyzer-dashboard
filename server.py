@@ -396,7 +396,8 @@ class StockHandler(SimpleHTTPRequestHandler):
                     "fiftyTwoWeekLow": info.get('fiftyTwoWeekLow'),
                     "earningsGrowth": info.get('earningsGrowth'),
                     "marketCap": info.get('marketCap'),
-                    "operatingCashflow": info.get("operatingCashflow")
+                    "operatingCashflow": info.get("operatingCashflow"),
+                    "institutionalOwnership": info.get("heldPercentInstitutions")
                 }
 
                 self.send_response(200)
