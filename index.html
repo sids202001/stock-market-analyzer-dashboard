@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Stock Analysis Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=13">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <header>
+            <h1>AI Stock Analysis <span>Dashboard</span></h1>
+            <p>June 2026 Market Insights &amp; Recommendations</p>
+            <a href="guide.html" style="display:inline-flex;align-items:center;gap:0.5rem;margin-top:0.8rem;padding:0.5rem 1.2rem;border-radius:999px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.35);color:#a78bfa;text-decoration:none;font-size:0.85rem;font-weight:600;transition:all 0.2s" onmouseover="this.style.background='rgba(139,92,246,0.22)'" onmouseout="this.style.background='rgba(139,92,246,0.12)'">📚 Complete Beginner's Guide — What Moves Every Stock</a>
+        </header>
+
+        <section class="summary-section">
+            <div class="glass-card highlight-card">
+                <h2>Market Overview & Strategy</h2>
+                <p><strong>Focus:</strong> High-Quality Fundamentals & AI Tailwinds</p>
+                <p class="details">Navigating the current market by prioritizing companies with wide economic moats, strong free cash flow generation, and reasonable valuations compared to their growth potential.</p>
+            </div>
+        </section>
+
+
+
+        <!-- Daily Spotlight -->
+        <section class="daily-spotlight" id="daily-spotlight">
+            <!-- Injected via JS -->
+        </section>
+
+        <!-- Search and Filter -->
+        <div class="controls-container">
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-filter="All">All</button>
+                <button class="filter-btn" data-filter="Strong Buy">Strong Buys</button>
+                <button class="filter-btn" data-filter="Buy">Buys</button>
+                <button class="filter-btn" data-filter="Hold">Holds</button>
+                <button class="filter-btn" data-filter="Sell">Avoid / Sell</button>
+            </div>
+        </div>
+
+        <section class="grid-section" id="stock-grid">
+            <!-- Cards will be injected here via JS -->
+        </section>
+    </div>
+
+    <div id="detail-modal" class="modal-overlay" onclick="if(event.target === this) window.closeModalFunc()">
+        <div class="modal-content glass-card">
+            <span class="close-btn" id="close-modal" onclick="window.closeModalFunc()">&times;</span>
+            <div id="modal-body">
+                <!-- Detailed content injected here via JS -->
+            </div>
+        </div>
+    </div>
+    <script src="script_final.js?v=21"></script>
+</body>
+</html>

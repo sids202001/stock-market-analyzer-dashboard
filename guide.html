@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Analysis Masterclass — Complete Beginner's Guide</title>
+    <meta name="description" content="Every factor that moves a stock price — Fundamentals, Technical Analysis, Risk Management, and Exit Strategy explained in plain English for beginners.">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #070c18;
+            --card: rgba(255,255,255,0.03);
+            --border: rgba(255,255,255,0.07);
+            --border-bright: rgba(255,255,255,0.13);
+            --text: #f1f5f9;
+            --muted: #64748b;
+            --muted2: #94a3b8;
+            --blue: #3b82f6; --blue-l: #60a5fa;
+            --green: #10b981; --green-l: #4ade80;
+            --yellow: #f59e0b; --yellow-l: #fbbf24;
+            --red: #ef4444; --red-l: #f87171;
+            --purple: #8b5cf6; --purple-l: #a78bfa;
+        }
+        * { margin:0;padding:0;box-sizing:border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        body::before {
+            content:'';position:fixed;inset:0;
+            background:
+                radial-gradient(ellipse at 10% 20%, rgba(59,130,246,0.12) 0%, transparent 55%),
+                radial-gradient(ellipse at 90% 80%, rgba(139,92,246,0.10) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, rgba(16,185,129,0.05) 0%, transparent 60%);
+            pointer-events:none;z-index:0;
+        }
+        #progress-bar {
+            position:fixed;top:64px;left:0;height:3px;
+            background:linear-gradient(90deg,#3b82f6,#8b5cf6,#10b981);
+            z-index:200;width:0%;transition:width 0.1s linear;
+        }
+        nav {
+            position:fixed;top:0;left:0;right:0;z-index:100;
+            background:rgba(7,12,24,0.85);backdrop-filter:blur(20px);
+            border-bottom:1px solid var(--border);padding:0 2rem;height:64px;
+            display:flex;align-items:center;justify-content:space-between;
+        }
+        .nav-brand { display:flex;align-items:center;gap:.75rem;text-decoration:none; }
+        .nav-logo {
+            width:36px;height:36px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);
+            border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;
+        }
+        .nav-title { font-size:1rem;font-weight:700;color:var(--text); }
+        .nav-links { display:flex;gap:.5rem;align-items:center; }
+        .nav-link {
+            color:var(--muted2);text-decoration:none;font-size:.85rem;font-weight:500;
+            padding:.4rem .9rem;border-radius:8px;transition:all .2s;
+        }
+        .nav-link:hover { color:var(--text);background:rgba(255,255,255,.05); }
+        .nav-btn {
+            background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;
+            text-decoration:none;font-size:.85rem;font-weight:600;
+            padding:.45rem 1.1rem;border-radius:8px;transition:opacity .2s;
+        }
+        .nav-btn:hover { opacity:.85; }
+        #back-top {
+            position:fixed;bottom:2rem;right:2rem;width:44px;height:44px;
+            background:rgba(59,130,246,.2);border:1px solid rgba(59,130,246,.4);
+            border-radius:50%;display:flex;align-items:center;justify-content:center;
+            cursor:pointer;font-size:1rem;color:var(--blue-l);z-index:200;
+            opacity:0;transform:translateY(10px);transition:all .3s;
+        }
+        #back-top.show { opacity:1;transform:translateY(0); }
+        .page-wrap { position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:6rem 2rem 6rem; }
+        .hero { text-align:center;margin-bottom:4rem;animation:fadeUp .8s ease both; }
+        .hero-badge {
+            display:inline-flex;align-items:center;gap:.5rem;
+            background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);
+            color:var(--blue-l);font-size:.78rem;font-weight:700;letter-spacing:1.5px;
+            text-transform:uppercase;padding:.4rem 1.1rem;border-radius:999px;margin-bottom:1.8rem;
+        }
+        .hero h1 { font-size:clamp(2.2rem,5vw,4rem);font-weight:900;line-height:1.1;margin-bottom:1.2rem;letter-spacing:-.5px; }
+        .hero h1 .grad {
+            background:linear-gradient(135deg,#60a5fa,#a78bfa,#34d399);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+        }
+        .hero-sub { font-size:1.15rem;color:var(--muted2);max-width:680px;margin:0 auto 2.5rem;line-height:1.7; }
+        .chapter-nav { display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap;margin-bottom:4rem; }
+        .chapter-pill {
+            display:flex;align-items:center;gap:.4rem;padding:.55rem 1.1rem;border-radius:999px;
+            border:1px solid var(--border);background:var(--card);color:var(--muted2);
+            text-decoration:none;font-size:.82rem;font-weight:600;transition:all .25s;
+        }
+        .chapter-pill:hover { border-color:var(--border-bright);color:var(--text);background:rgba(255,255,255,.05);transform:translateY(-2px); }
+        .overview-card {
+            background:linear-gradient(135deg,rgba(59,130,246,.08),rgba(139,92,246,.08));
+            border:1px solid rgba(59,130,246,.2);border-radius:20px;padding:2.5rem;margin-bottom:4rem;
+        }
+        .overview-card h2 { font-size:1.5rem;font-weight:800;margin-bottom:1.5rem; }
+        .ov-row { display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem; }
+        .ov-item { background:rgba(0,0,0,.2);border-radius:12px;padding:1rem 1.2rem;border:1px solid var(--border); }
+        .ov-num { font-size:1.8rem;font-weight:900;line-height:1;margin-bottom:.3rem; }
+        .ov-lbl { font-size:.78rem;color:var(--muted2); }
+        .section-block { margin-bottom:5rem; }
+        .section-header {
+            display:flex;align-items:center;gap:1rem;margin-bottom:2.5rem;
+            padding-bottom:1.2rem;border-bottom:1px solid var(--border);
+        }
+        .section-icon {
+            width:52px;height:52px;border-radius:14px;
+            display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;
+        }
+        .si-blue { background:rgba(59,130,246,.15); }
+        .si-green { background:rgba(16,185,129,.15); }
+        .si-yellow { background:rgba(245,158,11,.15); }
+        .si-red { background:rgba(239,68,68,.15); }
+        .si-purple { background:rgba(139,92,246,.15); }
+        .section-title-wrap { flex:1; }
+        .section-num { font-size:.72rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:.2rem; }
+        .sn-blue { color:var(--blue-l); } .sn-green { color:var(--green-l); }
+        .sn-yellow { color:var(--yellow-l); } .sn-red { color:var(--red-l); }
+        .sn-purple { color:var(--purple-l); }
+        .section-title { font-size:1.7rem;font-weight:800;line-height:1.2; }
+        .section-desc { color:var(--muted2);font-size:.92rem;margin-top:.25rem; }
+        .concept-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:1.2rem; }
+        .cc {
+            background:var(--card);border:1px solid var(--border);border-radius:18px;
+            padding:1.6rem;transition:all .3s;position:relative;overflow:hidden;
+        }
+        .cc::before {
+            content:'';position:absolute;top:0;left:0;right:0;height:3px;
+            border-radius:18px 18px 0 0;opacity:0;transition:opacity .3s;
+        }
+        .cc:hover { border-color:var(--border-bright);transform:translateY(-4px);box-shadow:0 16px 40px rgba(0,0,0,.35); }
+        .cc:hover::before { opacity:1; }
+        .cc.blue::before { background:linear-gradient(90deg,#3b82f6,#60a5fa); }
+        .cc.green::before { background:linear-gradient(90deg,#10b981,#4ade80); }
+        .cc.yellow::before { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
+        .cc.red::before { background:linear-gradient(90deg,#ef4444,#f87171); }
+        .cc.purple::before { background:linear-gradient(90deg,#8b5cf6,#a78bfa); }
+        .cc-top { display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem;gap:.8rem; }
+        .cc-icon {
+            width:46px;height:46px;border-radius:12px;
+            display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;
+        }
+        .ci-blue { background:rgba(59,130,246,.15); } .ci-green { background:rgba(16,185,129,.15); }
+        .ci-yellow { background:rgba(245,158,11,.15); } .ci-red { background:rgba(239,68,68,.15); }
+        .ci-purple { background:rgba(139,92,246,.15); }
+        .cc-badge {
+            font-size:.65rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+            padding:.25rem .6rem;border-radius:6px;flex-shrink:0;
+        }
+        .b-fund { background:rgba(59,130,246,.15);color:var(--blue-l); }
+        .b-tech { background:rgba(16,185,129,.15);color:var(--green-l); }
+        .b-risk { background:rgba(245,158,11,.15);color:var(--yellow-l); }
+        .cc-name { font-size:1.05rem;font-weight:800;margin-bottom:.35rem;line-height:1.3; }
+        .cc-formula {
+            display:inline-flex;align-items:center;font-size:.72rem;font-weight:600;color:var(--muted);
+            background:rgba(255,255,255,.04);border:1px solid var(--border);
+            border-radius:6px;padding:.2rem .55rem;margin-bottom:.8rem;
+            font-family:'Courier New',monospace;
+        }
+        .cc-plain { font-size:.93rem;color:#cbd5e1;line-height:1.6;margin-bottom:1rem; }
+        .cc-detail { border-top:1px solid var(--border);padding-top:1rem; }
+        .detail-toggle {
+            display:flex;align-items:center;justify-content:space-between;
+            cursor:pointer;font-size:.78rem;font-weight:600;color:var(--muted);
+            padding:.3rem 0;user-select:none;transition:color .2s;
+        }
+        .detail-toggle:hover { color:var(--muted2); }
+        .toggle-arrow {
+            width:18px;height:18px;background:rgba(255,255,255,.05);
+            border-radius:50%;display:flex;align-items:center;justify-content:center;
+            font-size:.55rem;transition:transform .3s;
+        }
+        .detail-toggle.open .toggle-arrow { transform:rotate(180deg); }
+        .detail-body { display:none;margin-top:.8rem;animation:slideDown .25s ease; }
+        .wtl-label { font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:.4rem; }
+        .wtl-row { display:flex;align-items:flex-start;gap:.5rem;margin-bottom:.3rem;font-size:.82rem;color:#94a3b8; }
+        .dot { width:6px;height:6px;border-radius:50%;margin-top:.38rem;flex-shrink:0; }
+        .dg { background:var(--green); } .dr { background:var(--red); }
+        .dy { background:var(--yellow); } .db { background:var(--blue); }
+        .meter-row { display:flex;align-items:center;gap:.7rem;margin:.6rem 0; }
+        .meter-lbl { font-size:.72rem;color:var(--muted);min-width:70px; }
+        .meter-bar { flex:1;height:6px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden; }
+        .meter-fill { height:100%;border-radius:99px; }
+        .meter-val { font-size:.72rem;font-weight:700;min-width:60px;text-align:right; }
+        .ex-box {
+            background:rgba(255,255,255,.02);border:1px solid var(--border);
+            border-radius:10px;padding:.8rem 1rem;margin-top:.6rem;
+            font-size:.8rem;color:#94a3b8;line-height:1.55;
+        }
+        .ex-box strong { color:var(--text); }
+        .ex-lbl { font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:.3rem; }
+        .quote {
+            border-left:3px solid var(--blue);padding:.7rem 1rem;
+            background:rgba(59,130,246,.06);border-radius:0 10px 10px 0;
+            font-size:.82rem;color:#93c5fd;font-style:italic;margin-top:.7rem;line-height:1.55;
+        }
+        .quote cite { display:block;margin-top:.3rem;font-style:normal;color:var(--muted);font-size:.72rem;font-weight:600; }
+        .ntbl { width:100%;border-collapse:collapse;font-size:.82rem;margin-top:.5rem; }
+        .ntbl th {
+            padding:.5rem .7rem;text-align:left;color:var(--muted);font-weight:600;
+            border-bottom:1px solid var(--border);font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;
+        }
+        .ntbl td { padding:.45rem .7rem;color:#cbd5e1;border-bottom:1px solid rgba(255,255,255,.03); }
+        .ng { color:var(--green-l);font-weight:700; } .nw { color:var(--yellow-l);font-weight:700; } .nb { color:var(--red-l);font-weight:700; }
+        .sdiv { height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:4rem 0; }
+        .checklist { display:flex;flex-direction:column;gap:.6rem; }
+        .check-item {
+            display:flex;align-items:flex-start;gap:.7rem;padding:.7rem .9rem;
+            border-radius:10px;background:rgba(255,255,255,.02);border:1px solid var(--border);
+            font-size:.88rem;color:#cbd5e1;transition:all .2s;
+        }
+        .check-item:hover { background:rgba(255,255,255,.04);border-color:var(--border-bright); }
+        .flow-wrap { display:flex;flex-direction:column; }
+        .flow-node {
+            display:flex;align-items:flex-start;gap:1rem;padding:1.3rem 1.5rem;
+            background:var(--card);border:1px solid var(--border);border-radius:14px;
+            transition:all .25s;
+        }
+        .flow-node:hover { border-color:var(--border-bright);background:rgba(255,255,255,.04); }
+        .flow-conn { width:2px;height:20px;background:linear-gradient(to bottom,rgba(255,255,255,.08),rgba(255,255,255,.02));margin-left:30px; }
+        .flow-num {
+            width:36px;height:36px;border-radius:50%;
+            display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;
+        }
+        .flow-title { font-size:1rem;font-weight:700;margin-bottom:.3rem; }
+        .flow-desc { font-size:.85rem;color:var(--muted2);line-height:1.55; }
+        footer {
+            position:relative;z-index:1;text-align:center;padding:3rem 2rem;
+            border-top:1px solid var(--border);color:var(--muted);font-size:.85rem;
+        }
+        footer a { color:var(--blue-l);text-decoration:none; }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+        .anim { opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease; }
+        .anim.vis { opacity:1;transform:translateY(0); }
+        @media(max-width:768px) {
+            .nav-links { display:none; }
+            .page-wrap { padding:5rem 1.2rem 4rem; }
+            .concept-grid { grid-template-columns:1fr; }
+            .checklist-grid { grid-template-columns:1fr; }
+        }
+        .warn-box {
+            padding:1.2rem 1.5rem;background:rgba(239,68,68,.06);
+            border:1px solid rgba(239,68,68,.2);border-radius:14px;
+            font-size:.92rem;color:#fca5a5;line-height:1.6;margin-bottom:2rem;
+        }
+        .checklist-grid { display:grid;grid-template-columns:1fr 1fr;gap:1.2rem; }
+        .cg-label { font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:.8rem; }
+        .back-btn {
+            display:inline-flex;align-items:center;gap:.6rem;
+            background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:white;
+            font-weight:700;font-size:1rem;text-decoration:none;
+            padding:1rem 2.5rem;border-radius:50px;transition:opacity .2s,transform .2s;
+            box-shadow:0 8px 24px rgba(59,130,246,.3);
+        }
+        .back-btn:hover { opacity:.85;transform:translateY(-2px); }
+    </style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<nav>
+    <a class="nav-brand" href="index.html">
+        <div class="nav-logo">📈</div>
+        <span class="nav-title">Stock Dashboard</span>
+    </a>
+    <div class="nav-links">
+        <a class="nav-link" href="#fundamentals">Fundamentals</a>
+        <a class="nav-link" href="#technical">Technical</a>
+        <a class="nav-link" href="#risk">Risk</a>
+        <a class="nav-link" href="#exit">Exit Strategy</a>
+        <a class="nav-btn" href="index.html">← Live Dashboard</a>
+    </div>
+</nav>
+<div id="back-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</div>
+<div class="page-wrap">
+
+    <!-- HERO -->
+    <section class="hero">
+        <div class="hero-badge">📚 Complete Beginner's Guide</div>
+        <h1>Everything That <span class="grad">Moves a Stock Price</span></h1>
+        <p class="hero-sub">No jargon. No fluff. Every single factor that professional investors and traders use to decide when to buy, hold, or sell a stock — explained in plain English so a complete beginner can understand.</p>
+    </section>
+
+    <!-- CHAPTER NAV -->
+    <div class="chapter-nav">
+        <a class="chapter-pill" href="#fundamentals">📊 Fundamental Analysis</a>
+        <a class="chapter-pill" href="#technical">📉 Technical Analysis</a>
+        <a class="chapter-pill" href="#risk">🛡️ Risk Management</a>
+        <a class="chapter-pill" href="#exit">🚪 Exit Strategy</a>
+        <a class="chapter-pill" href="#checklist">✅ Pre-Trade Checklist</a>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="overview-card anim">
+        <h2>🗺️ The 4 Pillars of Stock Analysis</h2>
+        <div class="ov-row">
+            <div class="ov-item"><div class="ov-num" style="color:#60a5fa">10</div><div class="ov-lbl">Fundamental Factors<br><span style="color:#475569">Is the business actually healthy?</span></div></div>
+            <div class="ov-item"><div class="ov-num" style="color:#4ade80">8</div><div class="ov-lbl">Technical Indicators<br><span style="color:#475569">When to buy or sell it?</span></div></div>
+            <div class="ov-item"><div class="ov-num" style="color:#fbbf24">4</div><div class="ov-lbl">Risk Management Rules<br><span style="color:#475569">How much capital to risk?</span></div></div>
+            <div class="ov-item"><div class="ov-num" style="color:#f87171">5</div><div class="ov-lbl">Exit Triggers<br><span style="color:#475569">Exactly when to get out?</span></div></div>
+        </div>
+    </div>
+
+    <!-- ═══════════════ SECTION 1: FUNDAMENTALS ═══════════════ -->
+    <section class="section-block anim" id="fundamentals">
+        <div class="section-header">
+            <div class="section-icon si-blue">📊</div>
+            <div class="section-title-wrap">
+                <div class="section-num sn-blue">Chapter 1 — The "What to Buy" Framework</div>
+                <div class="section-title">Fundamental Analysis</div>
+                <div class="section-desc">These 10 metrics reveal if the underlying business is genuinely healthy and worth owning</div>
+            </div>
+        </div>
+        <div class="concept-grid">
+
+            <!-- F1: Earnings & Revenue Growth -->
+            <div class="cc blue anim">
+                <div class="cc-top"><div class="cc-icon ci-blue">📈</div><span class="cc-badge b-fund">Fundamental</span></div>
+                <div class="cc-name">Earnings &amp; Revenue Growth</div>
+                <div class="cc-formula">YoY % Change in Revenue &amp; EPS</div>
+                <p class="cc-plain">Think of <strong>revenue</strong> as the total money the company collects from customers. <strong>Earnings (profit)</strong> is what remains after every expense is paid. When both grow consistently year after year, the business is genuinely expanding — not just surviving. This is the single most important signal that a stock can go higher.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 Deep Dive + What to Look For</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="wtl-label">🟢 Bullish Signals</div>
+                        <div class="wtl-row"><span class="dot dg"></span>Revenue growing &gt;10–15% year-over-year consistently</div>
+                        <div class="wtl-row"><span class="dot dg"></span>Earnings (EPS) growing faster than revenue — expanding margins</div>
+                        <div class="wtl-row"><span class="dot dg"></span>Management consistently beats Wall Street earnings estimates</div>
+                        <div class="wtl-label" style="margin-top:.7rem">🔴 Warning Signals</div>
+                        <div class="wtl-row"><span class="dot dr"></span>Revenue declining two or more quarters in a row</div>
+                        <div class="wtl-row"><span class="dot dr"></span>Earnings growing but revenue shrinking (unsustainable — costs are just being cut)</div>
+                        <div class="ex-box"><div class="ex-lbl">Real Example</div><strong>NVIDIA (NVDA)</strong> grew revenue from $16B to $61B in just one fiscal year — a 265% jump. The stock tripled. This is the power of explosive earnings growth.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- F2: P/E Ratio -->
+            <div class="cc blue anim">
+                <div class="cc-top"><div class="cc-icon ci-blue">🏷️</div><span class="cc-badge b-fund">Fundamental</span></div>
+                <div class="cc-name">Price-to-Earnings (P/E) Ratio</div>
+                <div class="cc-formula">P/E = Stock Price ÷ Earnings Per Share</div>
+                <p class="cc-plain">Imagine a lemonade stand earns $1/year. If someone buys it for $20, they're paying 20× earnings — that's a P/E of 20. The P/E ratio tells you <em>how expensive</em> a stock is relative to the company's actual profits. A high P/E means you're paying a premium; a low P/E could be a bargain — or a warning sign the business is declining.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 P/E Benchmarks by Scenario</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <table class="ntbl">
+                            <tr><th>P/E Range</th><th>What It Signals</th><th>Verdict</th></tr>
+                            <tr><td>&lt; 10</td><td>Deeply cheap — or business is declining</td><td class="nw">Caution</td></tr>
+                            <tr><td>10–20</td><td>Undervalued to fair (non-tech sectors)</td><td class="ng">Good</td></tr>
+                            <tr><td>20–35</td><td>Fairly priced for solid growth companies</td><td class="ng">Normal</td></tr>
+                            <tr><td>35–60</td><td>Priced for high growth — must deliver</td><td class="nw">Watch</td></tr>
+                            <tr><td>&gt; 60</td><td>Very expensive — must grow into it fast</td><td class="nb">Risky</td></tr>
+                        </table>
+                        <div class="ex-box" style="margin-top:.5rem">S&amp;P 500 average P/E is ~25. Tech giants trade at 35–60× because their growth justifies it. Banks and utilities trade at 8–15× due to slow growth. Always compare within the same sector.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- F3: PEG Ratio -->
+            <div class="cc blue anim">
+                <div class="cc-top"><div class="cc-icon ci-blue">🔬</div><span class="cc-badge b-fund">Fundamental</span></div>
+                <div class="cc-name">PEG Ratio (Price/Earnings-to-Growth)</div>
+                <div class="cc-formula">PEG = P/E Ratio ÷ Annual EPS Growth Rate (%)</div>
+                <p class="cc-plain">The P/E ratio alone can be misleading. A P/E of 40 looks scary — but if the company is growing earnings at 40%/year, it's actually fairly priced. The PEG ratio fixes this by adding the growth rate into the equation, giving you a <em>smarter, more complete</em> picture of whether the valuation is justified.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 Interpretation + Peter Lynch's Rule</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="wtl-label">Golden Rules</div>
+                        <div class="wtl-row"><span class="dot dg"></span><strong>PEG &lt; 1:</strong> Undervalued relative to growth — potential bargain</div>
+                        <div class="wtl-row"><span class="dot dy"></span><strong>PEG = 1:</strong> Fairly priced — paying a fair price for the growth rate</div>
+                        <div class="wtl-row"><span class="dot dr"></span><strong>PEG &gt; 2:</strong> Overvalued — paying too much for the expected growth</div>
+                        <div class="quote">"The P/E ratio of any company that's fairly priced will equal its growth rate."<cite>— Peter Lynch, legendary Fidelity Magellan fund manager</cite></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- F4: ROE -->
+            <div class="cc blue anim">
+                <div class="cc-top"><div class="cc-icon ci-blue">⚙️</div><span class="cc-badge b-fund">Fundamental</span></div>
+                <div class="cc-name">Return on Equity (ROE)</div>
+                <div class="cc-formula">ROE = Net Profit ÷ Shareholders' Equity × 100</div>
+                <p class="cc-plain">ROE measures how efficiently management turns <em>your money</em> into profit. If a company holds $100 of shareholder capital and earns $20 profit, ROE = 20%. High ROE is a sign of an excellent, highly efficient management team that knows how to deploy capital and generate superior returns for investors.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 Benchmarks + Real Numbers</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="meter-row"><div class="meter-lbl">Below 10%</div><div class="meter-bar"><div class="meter-fill" style="width:30%;background:#ef4444"></div></div><div class="meter-val nb">Weak</div></div>
+                        <div class="meter-row"><div class="meter-lbl">10–20%</div><div class="meter-bar"><div class="meter-fill" style="width:60%;background:#f59e0b"></div></div><div class="meter-val nw">Average</div></div>
+                        <div class="meter-row"><div class="meter-lbl">Above 20%</div><div class="meter-bar"><div class="meter-fill" style="width:90%;background:#10b981"></div></div><div class="meter-val ng">Excellent</div></div>
+                        <div class="ex-box" style="margin-top:.5rem"><strong>Apple (AAPL):</strong> ROE ~160%. <strong>Visa (V):</strong> ROE ~45%. These are extraordinary. The S&amp;P 500 average ROE is about 14%.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- F5: P/B Ratio -->
+            <div class="cc blue anim">
+                <div class="cc-top"><div class="cc-icon ci-blue">🏦</div><span class="cc-badge b-fund">Fundamental</span></div>
+                <div class="cc-name">Price-to-Book (P/B) Ratio</div>
+                <div class="cc-formula">P/B = Stock Price ÷ Book Value Per Share</div>
+                <p class="cc-plain"><strong>Book value</strong> is what the company would be worth if it liquidated all assets and paid off every debt today. The P/B ratio compares the stock price to this "breakup value." It's especially critical for asset-heavy sectors like banking, insurance, real estate, and manufacturing where physical assets drive the balance sheet.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 When P/B Matters + Key Benchmarks</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="wtl-label">🏦 Most Useful For</div>
+                        <div class="wtl-row"><span class="dot db"></span>Banks, credit unions, and financial institutions</div>
+                        <div class="wtl-row"><span class="dot db"></span>Real estate investment trusts (REITs)</div>
+                        <div class="wtl-row"><span class="dot db"></span>Heavy manufacturing, energy, and industrial companies</div>
+                        <div class="wtl-label" style="margin-top:.7rem">📌 Key Numbers</div>
+                        <div class="wtl-row"><span class="dot dg"></span>P/B &lt; 1: Trading below asset value — potential deep value buy</div>
+                        <div class="wtl-row"><span class="dot dy"></span>P/B 1–3: Normal and acceptable range</div>
+                        <div class="wtl-row"><span class="dot dr"></span>P/B &gt; 5: Expensive for asset-heavy businesses</div>
+                        <div class="ex-box">Note: P/B is <em>less meaningful</em> for software and tech companies — their biggest assets (brand, IP, algorithms) don't appear on the balance sheet.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- F6: D/E Ratio -->
+            <div class="cc red anim">
+                <div class="cc-top"><div class="cc-icon ci-red">💳</div><span class="cc-badge b-fund">Fundamental</span></div>
+                <div class="cc-name">Debt-to-Equity (D/E) Ratio</div>
+                <div class="cc-formula">D/E = Total Debt ÷ Total Shareholders' Equity</div>
+                <p class="cc-plain">D/E reveals how much borrowed money the company relies on vs. its own shareholder capital. A D/E of 2.0 means for every $1 of equity, the company owes $2 to lenders. High debt works fine in boom times but becomes catastrophic when revenue drops — loan payments don't pause for bad quarters. This is the #1 bankruptcy predictor.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 Safe vs Danger Zones</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <table class="ntbl">
+                            <tr><th>D/E Range</th><th>Signal</th><th>What It Means</th></tr>
+                            <tr><td>0 – 0.5</td><td class="ng">Very Safe</td><td>Company nearly debt-free</td></tr>
+                            <tr><td>0.5 – 1.5</td><td class="ng">Healthy</td><td>Moderate, manageable leverage</td></tr>
+                            <tr><td>1.5 – 3.0</td><td class="nw">Watch</td><td>Leverage is increasing — monitor</td></tr>
+                            <tr><td>&gt; 3.0</td><td class="nb">Danger</td><td>Highly vulnerable to downturns</td></tr>
+                        </table>
+                        <div class="ex-box" style="margin-top:.5rem">Important: Airlines, utilities, and telecom naturally carry higher D/E by industry norms — always compare against sector peers, not the broad market average.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- F7: Free Cash Flow -->
+            <div class="cc green anim">
+                <div class="cc-top"><div class="cc-icon ci-green">💵</div><span class="cc-badge b-fund">Fundamental</span></div>
+                <div class="cc-name">Free Cash Flow (FCF)</div>
+                <div class="cc-formula">FCF = Operating Cash Flow − Capital Expenditures</div>
+                <p class="cc-plain">Accounting profits can be engineered. Cold, hard cash cannot. FCF is the actual real money left over after the company has paid for everything it needs to operate and grow. This cash can fund dividends, stock buybacks, debt repayment, or new acquisitions. Professional investors often call FCF the <em>"king of all financial metrics."</em></p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 Why FCF is King + What to Look For</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="wtl-label">🟢 Elite FCF Signals</div>
+                        <div class="wtl-row"><span class="dot dg"></span>FCF Margin above 15–20% — elite-quality business</div>
+                        <div class="wtl-row"><span class="dot dg"></span>FCF growing consistently faster than revenue</div>
+                        <div class="wtl-row"><span class="dot dg"></span>FCF exceeds reported net income — no accounting tricks</div>
+                        <div class="wtl-label" style="margin-top:.7rem">🔴 Red Flags</div>
+                        <div class="wtl-row"><span class="dot dr"></span>FCF negative for multiple consecutive years in a mature company</div>
+                        <div class="wtl-row"><span class="dot dr"></span>FCF shrinking while profits appear to be growing</div>
+                        <div class="ex-box"><strong>Apple (AAPL):</strong> ~$100B+ FCF/year. <strong>Visa (V):</strong> 50%+ FCF margins. These are the gold standard.<br><br>Note: Negative FCF is acceptable for early-stage companies investing in infrastructure (e.g., Amazon during its first decade of buildout).</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- F8: Dividend Yield -->
+            <div class="cc green anim">
+                <div class="cc-top"><div class="cc-icon ci-green">💰</div><span class="cc-badge b-fund">Fundamental</span></div>
+                <div class="cc-name">Dividend Yield</div>
+                <div class="cc-formula">Yield = Annual Dividend Per Share ÷ Stock Price × 100</div>
+                <p class="cc-plain">Some companies share their profits directly with shareholders as <strong>dividends</strong> — regular cash payments just for owning the stock. A $100 stock that pays $3/year has a 3% dividend yield. This is essentially the "salary" your investment pays you while you wait for the stock price to grow. Dividend income is the foundation of long-term wealth compounding.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 What's a Safe vs Dangerous Yield?</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <table class="ntbl">
+                            <tr><th>Yield</th><th>What It Signals</th></tr>
+                            <tr><td>0%</td><td>Growth-focused — reinvesting all profits back in (normal for tech)</td></tr>
+                            <tr><td>1–2%</td><td>Modest income, still growth-oriented</td></tr>
+                            <tr><td class="ng">2–4%</td><td class="ng">Ideal: healthy balance of income + growth + stability</td></tr>
+                            <tr><td class="nw">4–6%</td><td class="nw">High yield — verify it's sustainable (check payout ratio)</td></tr>
+                            <tr><td class="nb">&gt; 7%</td><td class="nb">Danger zone — often a "dividend trap," may be cut soon</td></tr>
+                        </table>
+                        <div class="ex-box" style="margin-top:.5rem">A very high yield (10%+) is often a "dividend trap" — the stock price has collapsed so far that the yield looks attractive, but the company is usually about to cut the dividend entirely.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- F9: Economic Moat -->
+            <div class="cc purple anim">
+                <div class="cc-top"><div class="cc-icon ci-purple">🏰</div><span class="cc-badge b-fund">Fundamental</span></div>
+                <div class="cc-name">Economic Moat</div>
+                <div class="cc-formula">Qualitative: Competitive Advantage Durability Assessment</div>
+                <p class="cc-plain">A moat (like the water around a medieval castle) protects a business from attack by competitors. A company with a strong economic moat can defend its market share, pricing power, and profits for years or decades. Warren Buffett refuses to invest in businesses without wide moats — no matter how cheap they appear.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 5 Types of Moats + Real Examples</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="wtl-label">🏰 The 5 Classic Moat Types</div>
+                        <div class="wtl-row"><span class="dot db"></span><strong>Network Effect:</strong> More users = more valuable — nearly impossible to replicate (Visa, Meta, LinkedIn)</div>
+                        <div class="wtl-row"><span class="dot db"></span><strong>Switching Costs:</strong> Too painful or expensive for customers to leave (Salesforce, Oracle, SAP)</div>
+                        <div class="wtl-row"><span class="dot db"></span><strong>Cost Advantage:</strong> Produces so efficiently that competitors can't match the price (Costco, Amazon, Walmart)</div>
+                        <div class="wtl-row"><span class="dot db"></span><strong>Intangible Assets:</strong> Patents, regulatory licenses, or brands so strong they command premium pricing (Apple, Coca-Cola, Pfizer)</div>
+                        <div class="wtl-row"><span class="dot db"></span><strong>Efficient Scale:</strong> Market so niche that only one player can profitably serve it (utility companies, toll roads)</div>
+                        <div class="quote">"The most important thing to me is figuring out how big a moat there is around the business. What I love, of course, is a big castle and a big moat with piranhas and crocodiles."<cite>— Warren Buffett</cite></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- F10: Macro Environment -->
+            <div class="cc yellow anim">
+                <div class="cc-top"><div class="cc-icon ci-yellow">🌍</div><span class="cc-badge b-fund">Fundamental</span></div>
+                <div class="cc-name">Macroeconomic Environment</div>
+                <div class="cc-formula">Context: Interest Rates + Inflation + GDP + Fed Policy</div>
+                <p class="cc-plain">Even the best company can see its stock collapse if the macro tide turns against it. Interest rates, inflation, GDP growth, and Federal Reserve policy all create powerful headwinds or tailwinds that impact every stock in the market. Understanding the macro backdrop is like checking the weather before flying — you can't control it, but ignoring it is reckless.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 Key Macro Forces and Their Effects</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="wtl-label">📉 Rising Interest Rates</div>
+                        <div class="wtl-row"><span class="dot dr"></span>Crushes growth stocks (future earnings worth less in today's dollars)</div>
+                        <div class="wtl-row"><span class="dot dg"></span>Benefits banks and insurance companies (earn more on loans)</div>
+                        <div class="wtl-label" style="margin-top:.7rem">📈 Falling Interest Rates</div>
+                        <div class="wtl-row"><span class="dot dg"></span>Rocket fuel for growth stocks, tech, and real estate</div>
+                        <div class="wtl-row"><span class="dot dg"></span>Stimulates consumer spending and borrowing across economy</div>
+                        <div class="wtl-label" style="margin-top:.7rem">🔥 High Inflation</div>
+                        <div class="wtl-row"><span class="dot dy"></span>Good for commodity stocks, energy, gold, and pricing-power businesses</div>
+                        <div class="wtl-row"><span class="dot dr"></span>Hurts companies with fixed-price contracts and thin margins</div>
+                        <div class="ex-box">When the Fed raised rates 11× in 2022–2023, the NASDAQ fell 33%. When rates started falling in 2024, tech rallied back to all-time highs within 12 months.</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <div class="sdiv"></div>
+
+    <!-- ═══════════════ SECTION 2: TECHNICAL ═══════════════ -->
+    <section class="section-block anim" id="technical">
+        <div class="section-header">
+            <div class="section-icon si-green">📉</div>
+            <div class="section-title-wrap">
+                <div class="section-num sn-green">Chapter 2 — The "When to Buy/Sell" Framework</div>
+                <div class="section-title">Technical Analysis</div>
+                <div class="section-desc">Chart-based indicators that tell you the timing — when to actually pull the trigger</div>
+            </div>
+        </div>
+        <div class="concept-grid">
+
+            <!-- T1: Trend -->
+            <div class="cc green anim">
+                <div class="cc-top"><div class="cc-icon ci-green">🔭</div><span class="cc-badge b-tech">Technical</span></div>
+                <div class="cc-name">Trend Identification</div>
+                <div class="cc-formula">Uptrend = Higher Highs + Higher Lows over time</div>
+                <p class="cc-plain">The most fundamental rule in technical analysis: <strong>the trend is your friend.</strong> If a stock consistently makes higher peaks and higher troughs, it's in an <span style="color:var(--green-l);font-weight:700">uptrend</span> — a powerful tailwind. If it makes lower peaks and lower troughs, it's in a <span style="color:var(--red-l);font-weight:700">downtrend</span> — a crushing headwind that destroys buyers every time they try to fight it.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 How to Identify Trends + The Biggest Beginner Mistake</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="wtl-label">🟢 Uptrend Signals</div>
+                        <div class="wtl-row"><span class="dot dg"></span>Each rally reaches a higher price than the previous rally peak</div>
+                        <div class="wtl-row"><span class="dot dg"></span>Each pullback holds above the previous pullback's lowest point</div>
+                        <div class="wtl-row"><span class="dot dg"></span>Stock is trading above both its 50-day and 200-day moving averages</div>
+                        <div class="wtl-label" style="margin-top:.7rem">🔴 Downtrend Signals</div>
+                        <div class="wtl-row"><span class="dot dr"></span>Each rally fails at a lower price than the last attempt</div>
+                        <div class="wtl-row"><span class="dot dr"></span>Each bounce gets sold off aggressively before recovering</div>
+                        <div class="ex-box"><strong>The #1 Beginner Mistake:</strong> Buying a stock <em>because it's fallen a lot</em>, without checking the trend. A stock in a downtrend can always fall further. Professional traders call this "catching a falling knife."</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- T2: Support -->
+            <div class="cc green anim">
+                <div class="cc-top"><div class="cc-icon ci-green">🛡️</div><span class="cc-badge b-tech">Technical</span></div>
+                <div class="cc-name">Support Levels</div>
+                <div class="cc-formula">Historical Price Floor — Buyers Step In Repeatedly</div>
+                <p class="cc-plain">A support level is a price the stock has bounced off multiple times historically. Think of it as a trampoline — every time the stock falls to that price, buyers rush in and propel it back up. The more times a level holds as support, the stronger and more significant it becomes. Support = your best risk-managed entry zone.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 How Professional Traders Use Support</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="wtl-label">📌 The Trading Strategy</div>
+                        <div class="wtl-row"><span class="dot dg"></span><strong>Buy near support:</strong> Best risk/reward — downside is limited and defined</div>
+                        <div class="wtl-row"><span class="dot dg"></span><strong>Set stop-loss just below it:</strong> If support breaks, you know you're wrong — exit immediately</div>
+                        <div class="wtl-row"><span class="dot dr"></span><strong>Support break:</strong> When support fails convincingly, it typically flips to become resistance above</div>
+                        <div class="ex-box">Common support levels: Round numbers ($100, $500), previous swing lows, the 200-day moving average, and Fibonacci retracement levels (38.2%, 61.8%).</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- T3: Resistance -->
+            <div class="cc red anim">
+                <div class="cc-top"><div class="cc-icon ci-red">🚧</div><span class="cc-badge b-tech">Technical</span></div>
+                <div class="cc-name">Resistance Levels</div>
+                <div class="cc-formula">Historical Price Ceiling — Sellers Take Profits Repeatedly</div>
+                <p class="cc-plain">Resistance is the mirror image of support — a price the stock has repeatedly failed to break through. Think of it as a glass ceiling. Every time the stock approaches that level, investors who bought near the top see their chance to break even and flood the market with sell orders, stopping the advance cold and pushing the price back down.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 Breakouts — The Most Powerful Trade Setup</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="wtl-label">🚀 When Resistance Finally Breaks</div>
+                        <div class="wtl-row"><span class="dot dg"></span>A breakout above resistance on <em>high volume</em> is one of the most powerful buy signals in technical analysis</div>
+                        <div class="wtl-row"><span class="dot dg"></span>Old resistance becomes new support after a confirmed breakout</div>
+                        <div class="wtl-row"><span class="dot dr"></span>A breakout on <em>low volume</em> is often a false breakout — highly likely to fail and reverse</div>
+                        <div class="ex-box"><strong>All-time highs are the ultimate resistance.</strong> When a stock breaks to new all-time highs on strong volume, there are no trapped sellers above — which frequently leads to explosive, sustained moves upward as new demand has no resistance overhead.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- T4: Volume -->
+            <div class="cc green anim">
+                <div class="cc-top"><div class="cc-icon ci-green">📊</div><span class="cc-badge b-tech">Technical</span></div>
+                <div class="cc-name">Trading Volume</div>
+                <div class="cc-formula">Volume = Number of Shares Changing Hands in a Session</div>
+                <p class="cc-plain">Volume is the "conviction meter" of the stock market. When a stock makes a big move on <strong>high volume</strong>, it means institutional investors (hedge funds, pension funds, mutual funds) are participating — and the move is far more likely to hold and extend. A big move on <strong>low volume</strong> is fragile — it often reverses quickly when nobody else backs it.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 The 4 Volume Rules Every Trader Lives By</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="wtl-row"><span class="dot dg"></span><strong>Price UP + Volume HIGH:</strong> Strong institutional accumulation — very bullish</div>
+                        <div class="wtl-row"><span class="dot dr"></span><strong>Price UP + Volume LOW:</strong> Weak, unconvincing rally — likely to fail soon</div>
+                        <div class="wtl-row"><span class="dot dr"></span><strong>Price DOWN + Volume HIGH:</strong> Heavy distribution — big money is exiting, very bearish</div>
+                        <div class="wtl-row"><span class="dot dy"></span><strong>Price DOWN + Volume LOW:</strong> Normal healthy pullback — likely temporary, not alarming</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- T5: Moving Averages -->
+            <div class="cc green anim">
+                <div class="cc-top"><div class="cc-icon ci-green">📈</div><span class="cc-badge b-tech">Technical</span></div>
+                <div class="cc-name">Moving Averages (50-day &amp; 200-day MA)</div>
+                <div class="cc-formula">MA(N) = Average Closing Price Over Last N Trading Days</div>
+                <p class="cc-plain">Stock prices are incredibly noisy day-to-day. Moving averages smooth out all the random daily jumps and reveal the actual underlying direction. The <strong>50-day MA</strong> shows the medium-term trend. The <strong>200-day MA</strong> shows the long-term trend. Trillions of dollars of institutional capital automatically buy and sell near these levels.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 Golden Cross &amp; Death Cross Explained</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="wtl-label">⚡ Golden Cross — Major Long-Term Buy Signal</div>
+                        <div class="wtl-row"><span class="dot dg"></span>The 50-day MA crosses <em>above</em> the 200-day MA</div>
+                        <div class="wtl-row"><span class="dot dg"></span>Signals the beginning of a sustained long-term uptrend</div>
+                        <div class="wtl-row"><span class="dot dg"></span>NVDA, AAPL, and META each rallied 40–100%+ following their Golden Cross signals</div>
+                        <div class="wtl-label" style="margin-top:.7rem">☠️ Death Cross — Major Long-Term Warning Signal</div>
+                        <div class="wtl-row"><span class="dot dr"></span>The 50-day MA crosses <em>below</em> the 200-day MA</div>
+                        <div class="wtl-row"><span class="dot dr"></span>Signals the beginning of a sustained long-term downtrend</div>
+                        <div class="wtl-row"><span class="dot dr"></span>Many institutional funds are programmed to reduce exposure automatically when this occurs</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- T6: RSI -->
+            <div class="cc yellow anim">
+                <div class="cc-top"><div class="cc-icon ci-yellow">🌡️</div><span class="cc-badge b-tech">Technical</span></div>
+                <div class="cc-name">RSI — Relative Strength Index</div>
+                <div class="cc-formula">RSI Scale: 0 (Max Fear/Oversold) → 100 (Max Greed/Overbought)</div>
+                <p class="cc-plain">RSI is a temperature gauge for market momentum. It measures how fast and how far the stock has moved recently. When RSI climbs above <span style="color:var(--red-l);font-weight:700">70</span>, the stock has been bid up too fast — it's "overbought" and likely due for a pullback. When it falls below <span style="color:var(--green-l);font-weight:700">30</span>, it's been beaten down excessively — "oversold" and may be a buying opportunity.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 RSI Zones, Strategy + Important Caveat</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="meter-row"><div class="meter-lbl">0–30 Buy Zone</div><div class="meter-bar"><div class="meter-fill" style="width:30%;background:#4ade80"></div></div><div class="meter-val ng">Oversold</div></div>
+                        <div class="meter-row"><div class="meter-lbl">30–70 Neutral</div><div class="meter-bar"><div class="meter-fill" style="width:70%;background:#f59e0b"></div></div><div class="meter-val nw">Neutral</div></div>
+                        <div class="meter-row"><div class="meter-lbl">70–100 Sell</div><div class="meter-bar"><div class="meter-fill" style="width:100%;background:#f87171"></div></div><div class="meter-val nb">Overbought</div></div>
+                        <div class="ex-box" style="margin-top:.5rem"><strong>Important Caveat:</strong> During strong bull markets, a stock can stay above RSI 70 for weeks or months. RSI is most powerful when it shows a <em>divergence</em> — the stock makes a new high but RSI does not — which signals weakening momentum even before the price reverses. Never use RSI alone.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- T7: Candlestick Patterns -->
+            <div class="cc yellow anim">
+                <div class="cc-top"><div class="cc-icon ci-yellow">🕯️</div><span class="cc-badge b-tech">Technical</span></div>
+                <div class="cc-name">Candlestick Patterns</div>
+                <div class="cc-formula">Visual: Open, High, Low, Close per Trading Session</div>
+                <p class="cc-plain">Every trading day creates a "candlestick" on the chart. The body shows where price opened and closed; the wicks (shadows) show the extreme highs and lows. Specific combinations of these candles form patterns that reveal a dramatic <em>shift in market psychology</em> — from fear to greed or greed to fear — often reliably predicting the next price move before it happens.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 Key Patterns Every Beginner Needs to Know</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="wtl-label">🟢 Bullish Reversal Patterns (Buy Signals)</div>
+                        <div class="wtl-row"><span class="dot dg"></span><strong>Hammer:</strong> Small body, long lower wick — sellers pushed it down hard but buyers took over completely</div>
+                        <div class="wtl-row"><span class="dot dg"></span><strong>Bullish Engulfing:</strong> A massive green candle completely swallows the prior red — overwhelming buyer conviction</div>
+                        <div class="wtl-row"><span class="dot dg"></span><strong>Morning Star:</strong> Three-candle reversal pattern — gap down, doji of indecision, then strong green reversal</div>
+                        <div class="wtl-label" style="margin-top:.7rem">🔴 Bearish Reversal Patterns (Sell Signals)</div>
+                        <div class="wtl-row"><span class="dot dr"></span><strong>Shooting Star:</strong> Small body, long upper wick — buyers pushed it up sharply but sellers completely overwhelmed them</div>
+                        <div class="wtl-row"><span class="dot dr"></span><strong>Bearish Engulfing:</strong> A massive red candle swallows the prior green — sellers brutally overwhelmed buyers</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- T8: MACD -->
+            <div class="cc green anim">
+                <div class="cc-top"><div class="cc-icon ci-green">⚡</div><span class="cc-badge b-tech">Technical</span></div>
+                <div class="cc-name">MACD (Moving Average Convergence Divergence)</div>
+                <div class="cc-formula">MACD = 12-day EMA − 26-day EMA | Signal = 9-day EMA of MACD</div>
+                <p class="cc-plain">MACD is one of the world's most widely used indicators. In plain English: it compares a shorter-term price average to a longer-term average to detect when short-term momentum is <em>shifting direction</em>. When the MACD line crosses above the signal line, upward momentum is accelerating. When it crosses below, momentum is losing steam — a warning to reconsider your position.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 Reading MACD Signals Like a Pro</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="wtl-label">🟢 Bullish MACD Signals</div>
+                        <div class="wtl-row"><span class="dot dg"></span>MACD line crosses <em>above</em> the signal line (bullish crossover) — momentum turning positive</div>
+                        <div class="wtl-row"><span class="dot dg"></span>Histogram bars growing taller above zero — acceleration of upward momentum</div>
+                        <div class="wtl-row"><span class="dot dg"></span>Both MACD and signal line crossing from below zero to above (strongest buy signal)</div>
+                        <div class="wtl-label" style="margin-top:.7rem">🔴 Bearish MACD Signals</div>
+                        <div class="wtl-row"><span class="dot dr"></span>MACD line crosses <em>below</em> signal line — momentum turning negative</div>
+                        <div class="wtl-row"><span class="dot dr"></span>Divergence: stock makes a new price high but MACD does not match it — momentum is fading</div>
+                        <div class="ex-box">Best practice: Combine MACD with RSI and volume for confirmation. MACD alone produces many false signals in sideways, choppy, or range-bound markets.</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <div class="sdiv"></div>
+
+    <!-- ═══════════════ SECTION 3: RISK ═══════════════ -->
+    <section class="section-block anim" id="risk">
+        <div class="section-header">
+            <div class="section-icon si-yellow">🛡️</div>
+            <div class="section-title-wrap">
+                <div class="section-num sn-yellow">Chapter 3 — Protecting Your Capital</div>
+                <div class="section-title">Risk Management &amp; Portfolio Fit</div>
+                <div class="section-desc">The discipline that separates professionals from gamblers — surviving bad streaks and compounding over decades</div>
+            </div>
+        </div>
+        <div class="concept-grid">
+
+            <!-- R1: Risk/Reward -->
+            <div class="cc yellow anim">
+                <div class="cc-top"><div class="cc-icon ci-yellow">⚖️</div><span class="cc-badge b-risk">Risk Mgmt</span></div>
+                <div class="cc-name">Risk/Reward Ratio</div>
+                <div class="cc-formula">R:R = Potential Profit Target ÷ Maximum Acceptable Loss</div>
+                <p class="cc-plain">Before entering any trade, the professional always calculates: "If I'm right, how much do I make? If I'm wrong, how much do I lose?" The golden rule: only take trades where the potential profit is <strong>at least 2–3× the potential loss.</strong> With this discipline, even if you only win 40% of your trades, you'll still generate excellent overall returns.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 Full Calculation Walkthrough + Standards</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="ex-box">
+                            <div class="ex-lbl">Complete Example</div>
+                            Buy NVDA at <strong>$900</strong>.<br>
+                            Stop-loss at <strong>$850</strong> → Risk per share = <strong>$50</strong><br>
+                            Price target at <strong>$1,050</strong> → Reward per share = <strong>$150</strong><br>
+                            R:R Ratio = $150 ÷ $50 = <strong style="color:var(--green-l)">3:1 ✅ Excellent trade setup</strong>
+                        </div>
+                        <div class="wtl-label" style="margin-top:.7rem">Professional Standards</div>
+                        <div class="wtl-row"><span class="dot dr"></span>Below 1:1 — Never trade this. The math is permanently against you</div>
+                        <div class="wtl-row"><span class="dot dy"></span>1:1 to 2:1 — Marginal. Only viable with a very high win rate (&gt;60%)</div>
+                        <div class="wtl-row"><span class="dot dg"></span>2:1 or better — Acceptable for most active trading strategies</div>
+                        <div class="wtl-row"><span class="dot dg"></span>3:1 or better — Ideal. Even 33% win rate is overall profitable</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- R2: Position Sizing -->
+            <div class="cc yellow anim">
+                <div class="cc-top"><div class="cc-icon ci-yellow">📐</div><span class="cc-badge b-risk">Risk Mgmt</span></div>
+                <div class="cc-name">Position Sizing</div>
+                <div class="cc-formula">Shares = (Account × Risk%) ÷ (Entry Price − Stop-Loss Price)</div>
+                <p class="cc-plain">The most underrated skill in all of investing. Position sizing answers the critical question: "How many shares should I buy?" Most professional traders risk <strong>only 1–2% of their total account on any single trade.</strong> This means 10 consecutive losses only costs 10–20% of the account — not a wipeout. It's the only reason professionals survive the inevitable losing streaks.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 The 2% Rule — Step-by-Step Walkthrough</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="ex-box">
+                            <div class="ex-lbl">Position Sizing Example</div>
+                            Total Account: <strong>$50,000</strong><br>
+                            Max risk per trade (2%): <strong>$1,000</strong><br>
+                            Entry price: <strong>$200</strong> | Stop-loss: <strong>$190</strong><br>
+                            Risk per share: $200 − $190 = <strong>$10</strong><br>
+                            Correct position size: $1,000 ÷ $10 = <strong style="color:var(--green-l)">100 shares max</strong>
+                        </div>
+                        <div class="wtl-label" style="margin-top:.7rem">Risk Tolerance Spectrum</div>
+                        <div class="wtl-row"><span class="dot dg"></span>1–2% per trade — Professional standard, survives long losing streaks</div>
+                        <div class="wtl-row"><span class="dot dy"></span>3–5% per trade — Aggressive, but survivable with discipline</div>
+                        <div class="wtl-row"><span class="dot dr"></span>10%+ per trade — This is gambling, not investing. One bad streak can end you</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- R3: Diversification -->
+            <div class="cc yellow anim">
+                <div class="cc-top"><div class="cc-icon ci-yellow">🧩</div><span class="cc-badge b-risk">Risk Mgmt</span></div>
+                <div class="cc-name">Diversification Check</div>
+                <div class="cc-formula">No Single Sector &gt; 25–30% | No Single Stock &gt; 5–10%</div>
+                <p class="cc-plain">Having 10 different tech stocks is <em>not</em> diversification — it's concentration with extra steps. They all fall together when tech falls. True diversification means spreading capital across different <strong>sectors</strong> (technology, healthcare, financials, energy, consumer staples) so that when any one sector gets crushed, others hold up and protect the portfolio.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 Smart Diversification Framework</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <div class="wtl-label">🏆 Professional Portfolio Rules</div>
+                        <div class="wtl-row"><span class="dot dg"></span>No single stock exceeds 5–10% of total portfolio value</div>
+                        <div class="wtl-row"><span class="dot dg"></span>No single sector exceeds 25–30% of total portfolio value</div>
+                        <div class="wtl-row"><span class="dot dg"></span>Mix growth stocks + value stocks + dividend payers for balance</div>
+                        <div class="wtl-row"><span class="dot dy"></span>High-conviction positions: up to 20% is acceptable only after deep, thorough research</div>
+                        <div class="quote">"Diversification is protection against ignorance. It makes little sense if you know what you are doing."<cite>— Warren Buffett (who concentrates his portfolio heavily in a few high-conviction bets)</cite></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- R4: Time Horizon -->
+            <div class="cc yellow anim">
+                <div class="cc-top"><div class="cc-icon ci-yellow">⏳</div><span class="cc-badge b-risk">Risk Mgmt</span></div>
+                <div class="cc-name">Time Horizon Alignment</div>
+                <div class="cc-formula">Strategy Must Perfectly Match Your Intended Holding Period</div>
+                <p class="cc-plain">A strategy that works brilliantly for a 10-year investor is completely wrong for a 2-week trader — and vice versa. Before entering any position, you must decide <em>exactly</em> how long you intend to hold it. This determines which signals matter, what losses are acceptable to absorb, and what "winning" actually looks like for that specific investment thesis.</p>
+                <div class="cc-detail">
+                    <div class="detail-toggle" onclick="toggleDetail(this)"><span>📖 Matching Strategy to Holding Period</span><div class="toggle-arrow">▼</div></div>
+                    <div class="detail-body">
+                        <table class="ntbl">
+                            <tr><th>Horizon</th><th>Strategy</th><th>Key Tools</th></tr>
+                            <tr><td>Days–Weeks</td><td>Momentum Trading</td><td>RSI, MACD, Volume, Candles</td></tr>
+                            <tr><td>Weeks–Months</td><td>Swing Trading</td><td>MAs, S/R Levels, Earnings</td></tr>
+                            <tr><td>1–3 Years</td><td>Growth Investing</td><td>Revenue Growth, P/E, PEG</td></tr>
+                            <tr><td>5–10+ Years</td><td>Value Investing</td><td>FCF, ROE, Moat, DCF, Dividends</td></tr>
+                        </table>
+                        <div class="ex-box" style="margin-top:.5rem"><strong>The Worst Mistake:</strong> Buying a stock for a short-term catalyst, watching it fall, and then deciding to hold it indefinitely because you can't accept the loss. Changing your time horizon <em>after the fact</em> to justify avoiding a loss is one of the most destructive habits in investing.</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <div class="sdiv"></div>
+
+    <!-- ═══════════════ SECTION 4: EXIT STRATEGY ═══════════════ -->
+    <section class="section-block anim" id="exit">
+        <div class="section-header">
+            <div class="section-icon si-red">🚪</div>
+            <div class="section-title-wrap">
+                <div class="section-num sn-red">Chapter 4 — The Hardest &amp; Most Important Skill</div>
+                <div class="section-title">The Exit Strategy</div>
+                <div class="section-desc">5 specific triggers that tell you exactly when to sell — pre-defined before you ever buy</div>
+            </div>
+        </div>
+
+        <div class="warn-box anim">
+            ⚠️ <strong>The Most Common Investor Mistake:</strong> Most investors are great at researching what to buy — but have absolutely no plan for when to sell. Buying is the easy, exciting part. Having a pre-defined, emotion-free exit plan before entering a trade is what separates amateurs from professionals. Without one, fear and greed will make every decision for you.
+        </div>
+
+        <div class="flow-wrap anim">
+            <div class="flow-node">
+                <div class="flow-num" style="background:rgba(239,68,68,.15)">🧠</div>
+                <div>
+                    <div class="flow-title">Trigger 1: Fundamental Breakdown — The Original Thesis is Destroyed</div>
+                    <div class="flow-desc">You bought the stock because of a specific thesis — a belief that this business would grow and succeed. If that thesis is no longer valid, you <em>must sell</em> — regardless of whether you're sitting on a profit or a loss. Examples: a massive earnings miss that signals structural decay (not just a bad quarter), the unexpected departure of a visionary CEO, a competitor that makes the product obsolete overnight, a major regulatory action that dismantles the business model, or a scandal that permanently damages the brand.<br><br><strong style="color:#fca5a5">The test to ask yourself:</strong> "If I didn't own this stock today, would I still buy it right now at this current price, knowing exactly what I know?" If the honest answer is no — sell without hesitation.</div>
+                </div>
+            </div>
+            <div class="flow-conn"></div>
+
+            <div class="flow-node">
+                <div class="flow-num" style="background:rgba(239,68,68,.15)">📊</div>
+                <div>
+                    <div class="flow-title">Trigger 2: Valuation Peak — The Price Has Run Far Beyond Reality</div>
+                    <div class="flow-desc">Sometimes the business is still completely healthy and executing perfectly — but the stock price has run so far ahead of reality that the valuation is no longer defensible by any rational measure. When a stock's P/E or PEG ratio reaches bubble-level extremes — far above its historical average and far above what its growth rate can justify — the stock has already "priced in" many years of future growth. Even if execution continues perfectly, the stock can go nowhere for years while earnings slowly "catch up" to the inflated price.<br><br><strong style="color:#fca5a5">Rule of thumb:</strong> When the PEG ratio exceeds 3–4× and the stock is trading at a generational high valuation multiple, taking substantial profits is prudent risk management — even if the company continues to perform.</div>
+                </div>
+            </div>
+            <div class="flow-conn"></div>
+
+            <div class="flow-node">
+                <div class="flow-num" style="background:rgba(239,68,68,.15)">🛑</div>
+                <div>
+                    <div class="flow-title">Trigger 3: Stop-Loss Hit — Your Pre-Planned Maximum Loss Limit</div>
+                    <div class="flow-desc">A stop-loss is a pre-defined price below which you will exit the trade automatically. It's your emotion-free, pre-planned "I was wrong" exit trigger. Professional traders always set their stop-loss <em>before</em> entering a trade — never after. This removes all emotion from the decision. When the stock hits the level: exit. Period. No second-guessing. No "I'll give it another week." No hope-based holding.<br><br><strong style="color:#fca5a5">Common stop-loss placements:</strong> Just below a key support level, below the 50-day or 200-day moving average, or a fixed percentage below entry (7–10% is the most common professional standard). The best traders protect their capital ruthlessly and patiently wait for the next high-quality opportunity — they never fight the tape.</div>
+                </div>
+            </div>
+            <div class="flow-conn"></div>
+
+            <div class="flow-node">
+                <div class="flow-num" style="background:rgba(16,185,129,.15)">🎯</div>
+                <div>
+                    <div class="flow-title">Trigger 4: Profit Target Reached — Discipline Over Greed</div>
+                    <div class="flow-desc">Before entering any trade, you should calculate a specific upside price target based on valuation analysis, technical resistance levels, or analyst consensus. When the stock reaches that target, take your profits — at least partially. Many investors let greed transform their winners into losers by holding too long, watching the inevitable reversal erase months of hard-won gains before finally selling at a loss.<br><br><strong style="color:#4ade80">Pro strategy — Scaling Out:</strong> Sell 30–50% of your position at your first profit target, then set a trailing stop on the remainder. This locks in realized gains while preserving exposure to potential further upside. You can never go wrong booking profits.</div>
+                </div>
+            </div>
+            <div class="flow-conn"></div>
+
+            <div class="flow-node">
+                <div class="flow-num" style="background:rgba(59,130,246,.15)">🔄</div>
+                <div>
+                    <div class="flow-title">Trigger 5: Opportunity Cost Pivot — Better Use of Your Capital Emerges</div>
+                    <div class="flow-desc">Every dollar sitting in one stock is a dollar that cannot be deployed into a better opportunity. If you identify a stock with 3× more upside potential, superior growth catalysts, and similar or lower risk than your current holding, it may be strategically correct to sell the weaker position and redirect that capital where it can work much harder. This is called an "opportunity cost pivot" and is a hallmark of sophisticated, adaptive portfolio management.<br><br><strong style="color:#60a5fa">The recurring question to ask:</strong> "Is my capital doing the absolute best work it possibly can in this specific stock right now, or is there a significantly superior use of these funds available today?" This should not be a one-time consideration — it should be part of your ongoing portfolio review discipline.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="sdiv"></div>
+
+    <!-- ═══════════════ PRE-TRADE CHECKLIST ═══════════════ -->
+    <section class="section-block anim" id="checklist">
+        <div class="section-header">
+            <div class="section-icon si-purple">✅</div>
+            <div class="section-title-wrap">
+                <div class="section-num sn-purple">Quick Reference</div>
+                <div class="section-title">The Complete Pre-Trade Checklist</div>
+                <div class="section-desc">Run through every one of these 14 questions before you buy any stock</div>
+            </div>
+        </div>
+        <div class="checklist-grid">
+            <div>
+                <div class="cg-label" style="color:var(--blue-l)">📊 Fundamental Checks</div>
+                <div class="checklist">
+                    <div class="check-item">📈 Is revenue growing consistently &gt;10% year-over-year?</div>
+                    <div class="check-item">🏷️ Is the P/E ratio justified by the growth rate? (PEG &lt; 2?)</div>
+                    <div class="check-item">⚙️ Is ROE above 15%? (Management efficiency check)</div>
+                    <div class="check-item">💳 Is D/E manageable for this specific industry?</div>
+                    <div class="check-item">💵 Is Free Cash Flow positive and growing?</div>
+                    <div class="check-item">🏰 Does the company have a durable, defensible economic moat?</div>
+                    <div class="check-item">🌍 Is the macro environment supportive for this sector right now?</div>
+                </div>
+            </div>
+            <div>
+                <div class="cg-label" style="color:var(--green-l)">📉 Technical + Risk Checks</div>
+                <div class="checklist">
+                    <div class="check-item">🔭 Is the stock in an uptrend? (Above 50 &amp; 200-day MA?)</div>
+                    <div class="check-item">🛡️ Is there a clear, nearby support level to buy at or near?</div>
+                    <div class="check-item">🌡️ Is RSI between 30–60? (Not overbought or in a frenzy?)</div>
+                    <div class="check-item">⚡ Is MACD showing positive momentum? (Not diverging?)</div>
+                    <div class="check-item">⚖️ Is my Risk/Reward at least 2:1? (Profit ≥ 2× my max loss?)</div>
+                    <div class="check-item">📐 Have I sized this to risk only 1–2% of my total account?</div>
+                    <div class="check-item">🚪 Do I have a clear stop-loss AND a specific profit target set?</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BACK TO DASHBOARD -->
+    <div class="anim" style="text-align:center;margin-top:2rem">
+        <a class="back-btn" href="index.html">← Back to Live Stock Dashboard</a>
+        <p style="color:var(--muted);font-size:.85rem;margin-top:1rem">Apply everything you just learned to real stocks with real-time data</p>
+    </div>
+
+</div>
+<footer>
+    <p>Stock Analysis Masterclass — Built for clarity, not complexity. <a href="index.html">← Live Dashboard</a></p>
+    <p style="margin-top:.5rem;font-size:.75rem;color:var(--muted)">Educational purposes only. Not financial advice. Always do your own due diligence and research.</p>
+</footer>
+<script>
+    window.addEventListener('scroll', () => {
+        const pct = (window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+        document.getElementById('back-top').classList.toggle('show', window.scrollY > 400);
+    });
+    const obs = new IntersectionObserver(entries => {
+        entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('vis'); });
+    }, { threshold: 0.07 });
+    document.querySelectorAll('.anim').forEach(el => obs.observe(el));
+    function toggleDetail(toggle) {
+        toggle.classList.toggle('open');
+        const body = toggle.nextElementSibling;
+        body.style.display = body.style.display === 'block' ? 'none' : 'block';
+    }
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+        a.addEventListener('click', e => {
+            e.preventDefault();
+            const t = document.querySelector(a.getAttribute('href'));
+            if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+</script>
+</body>
+</html>
