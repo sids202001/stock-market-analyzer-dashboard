@@ -1,14 +1,10 @@
-# Stock Market Analyzer Dashboard
+# Real-Time Stock Market Technical Analysis Dashboard
 
-A stock research dashboard that pulls live data from Yahoo Finance, runs technical analysis, and tells you whether to buy, hold, or avoid — all from a single Python server with no API keys.
+Professional financial terminals like Bloomberg cost thousands of dollars a year, and free retail screener websites are either bloated with paywalls, spammy ads, or break under aggressive API rate limits. Worse, retail investors are forced to juggle three different tools just to evaluate a single stock—one tab for price charts, another for financial statements, and another for options chains. I built this platform to bring institutional-grade equity intelligence, algorithmic technical signals, and automated financial analysis into a single, lightning-fast dashboard that anyone can use for free with zero API keys.
 
-### How It Works
-> **"One server, zero API keys — live Wall Street data in your browser."**
-> 
-> Most stock analysis tools cost money or need paid API subscriptions. I didn't want that. So I built this:
-> 1. **The Server**: A Python HTTP server that talks to Yahoo Finance through `yfinance`, crunches the numbers (RSI, MACD, moving average crossovers, Fibonacci levels), and hands it all back as clean JSON. It caches prices for 2 minutes so Yahoo doesn't throttle you.
-> 2. **The Dashboard**: A dark-themed frontend that takes all that data and turns it into interactive charts, stock cards with buy/sell badges, options tables, earnings history, insider trades — the works. Built with vanilla JS and Chart.js.
-> 3. **Portfolio Tracking**: A small CLI script where you plug in your holdings (stocks, crypto, ETFs) and it spits out your real P&L, cost basis, and where analysts think each position is headed.
+The platform is driven by a multi-threaded Python backend that streams live Wall Street market data directly from Yahoo Finance, decoupled by a thread-safe in-memory 2-minute TTL cache that prevents upstream vendor throttling during high-frequency scans. The engine processes vector math in real time to calculate 50/200-day moving average crossovers (Golden Crosses and Death Crosses), 14-period RSI momentum, MACD distributions, and 52-week Fibonacci support and resistance bands. Beyond raw technicals, the platform pipes company balance sheets, cash flow, debt-to-cash ratios, and historical earnings surprises into a generative AI financial reasoning pipeline. The AI analyzes these quantitative matrices on the fly to generate executive-level investment briefs—outlining company moats, upcoming market catalysts, risk ratings, and disciplined stop-loss recommendations for any global ticker. Paired with interactive options chains and dark-mode Chart.js visualizations, the dashboard delivers sub-second, comprehensive investment intelligence with zero subscription overhead.
+
+**Tech & Skills:** Generative AI Financial Reasoning • Quantitative Indicator Pipelines • Python • ThreadingHTTPServer • yfinance • pandas • Chart.js • In-Memory Caching
 
 ---
 
