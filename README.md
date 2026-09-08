@@ -8,18 +8,18 @@
   <img src="https://img.shields.io/badge/In--Memory_Cache-2--min_TTL-orange?style=for-the-badge" alt="In-Memory Cache" />
 </p>
 
-Most retail financial screeners rely on expensive third-party APIs, break under strict vendor rate limits, or force users to manage multiple subscription keys. I built this full-stack market analysis platform to provide high-throughput, low-latency equity intelligence in a single browser interface—engineered as a self-contained, zero-dependency system that operates entirely without paid API keys or external database overhead.
+Most retail market screeners either hide essential analytics behind expensive paywalls or rely on brittle, rate-limited third-party APIs. I engineered this full-stack quantitative equity analysis platform to deliver institutional-grade research capabilities in a single, lightweight browser environment—operating completely standalone with zero API keys, zero subscription overhead, and sub-second response times. The backend is driven by a multi-threaded Python server featuring a thread-safe in-memory 2-minute TTL cache and asynchronous `ThreadPoolExecutor` workers, enabling high-frequency batch queries across global tickers without vendor throttling or external database dependencies.
 
-The backend is powered by a multi-threaded Python server (`ThreadingHTTPServer`) featuring a thread-safe in-memory 2-minute TTL cache that prevents upstream request throttling during high-frequency queries. When a ticker is searched, the engine executes vectorized time-series processing via `pandas`: computing 50/200-day rolling moving average crossovers, 14-period RSI momentum distributions, exponential MACD signal lines, and 52-week Fibonacci retracement levels. In parallel, a `ThreadPoolExecutor` queries comparative peer metrics while algorithmic evaluation pipelines parse balance sheets, income statements, and cash flow data to calculate Altman Z-Score and Piotroski F-Score metrics. The server also ingests options chains to extract near-the-money implied volatility and Put/Call volume ratios. On the frontend, a lightweight vanilla ES6+ client-side architecture renders interactive Chart.js visualizations, live ticker search, and consensus data models with sub-second response times.
+Under the hood, the system executes an automated multi-factor scoring pipeline that evaluates every asset across three distinct dimensions. At the macro layer, it benchmarks the S&P 500 against its 50-day and 200-day moving averages to classify broader market regimes (Risk-On Bull vs. Risk-Off Bear). At the fundamental layer, algorithmic modules parse corporate financial statements to compute hedge-fund metrics, including the Piotroski 9-factor F-Score, Altman Z-Score insolvency risk, and Greenblatt’s Magic Formula, while tracking real-time C-suite insider transactions and earnings beat streaks. At the market sentiment layer, the engine aggregates options chains to compute near-the-money implied volatility and Put/Call volume ratios alongside vectorized technical signals (SMA Golden/Death Crosses, 14-period RSI, and 52-week Fibonacci retracements). Paired with an interactive vanilla ES6+ and Chart.js frontend, the platform synthesizes complex multi-stream financial data into a unified, actionable investment verdict in under 500 milliseconds.
 
 <p align="left">
   <img src="https://img.shields.io/badge/Python_3.9+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.9+" />
-  <img src="https://img.shields.io/badge/ThreadingHTTPServer-Concurrent_Backend-007ACC?style=flat-square" alt="ThreadingHTTPServer" />
+  <img src="https://img.shields.io/badge/ThreadingHTTPServer-Concurrent_Backend-007ACC?style=flat-square" alt="Concurrent Backend" />
   <img src="https://img.shields.io/badge/In--Memory_Cache-2--min_TTL-orange?style=flat-square" alt="In-Memory Cache" />
-  <img src="https://img.shields.io/badge/pandas-Vectorized_Time--Series-150458?style=flat-square&logo=pandas&logoColor=white" alt="pandas" />
-  <img src="https://img.shields.io/badge/Algorithms-Piotroski_%7C_Altman_Z_%7C_SMA_%7C_RSI-success?style=flat-square" alt="Algorithms" />
-  <img src="https://img.shields.io/badge/Options_Engine-IV_%7C_Put--Call_Ratios-blueviolet?style=flat-square" alt="Options Engine" />
-  <img src="https://img.shields.io/badge/Chart.js-Vanilla_ES6+-FF6384?style=flat-square&logo=chartdotjs&logoColor=white" alt="Chart.js" />
+  <img src="https://img.shields.io/badge/Quant_Pipeline-Piotroski_%7C_Altman_Z_%7C_Magic_Formula-success?style=flat-square" alt="Quant Pipeline" />
+  <img src="https://img.shields.io/badge/Options_Analytics-IV_%7C_Put--Call_Ratios-blueviolet?style=flat-square" alt="Options Analytics" />
+  <img src="https://img.shields.io/badge/Technical_Signals-SMA_%7C_RSI_%7C_Fibonacci-orange?style=flat-square" alt="Technical Signals" />
+  <img src="https://img.shields.io/badge/Frontend-Vanilla_ES6+_%7C_Chart.js-FF6384?style=flat-square&logo=chartdotjs&logoColor=white" alt="Frontend" />
 </p>
 
 ---
