@@ -8,18 +8,18 @@
   <img src="https://img.shields.io/badge/In--Memory_Cache-2--min_TTL-orange?style=for-the-badge" alt="In-Memory Cache" />
 </p>
 
-Evaluating a stock normally means drowning in browser tabs. You have one tab open for price charts on TradingView, another for financial statements on Yahoo Finance, a third for options chains, and you still run into paywalls, ads, or API rate limits. I built this dashboard to fix that entire headache: a completely free, all-in-one stock analysis platform that gives everyday investors an honest, 360-degree breakdown of any company in seconds—with zero API keys and zero subscription fees.
+Most retail financial screeners rely on expensive third-party APIs, break under strict vendor rate limits, or force users to manage multiple subscription keys. I built this full-stack market analysis platform to provide high-throughput, low-latency equity intelligence in a single browser interface—engineered as a self-contained, zero-dependency system that operates entirely without paid API keys or external database overhead.
 
-The platform is driven by a multi-threaded Python backend that streams live market data from Yahoo Finance, protected by an in-memory 2-minute cache so you can scan dozens of tickers without getting rate-limited. The moment you search any stock, the engine runs deep checks across three key areas: it monitors the broader market health by tracking the S&P 500 trend so you don't buy into a falling market; it stress-tests the company’s balance sheet using proven financial health formulas like the Piotroski F-Score and Altman Z-Score to catch hidden debt or bankruptcy risks; and it tracks what corporate insiders (CEOs and directors) are doing with their own money alongside institutional holdings. It combines that with technical signals (50/200-day moving average crosses, RSI momentum, and MACD), Put-to-Call options volume, and earnings beat history to generate an automated investment brief with realistic Buy, Hold, or Sell targets. Everything renders instantly in a clean, dark-mode interface with interactive charts, replacing hours of scattered manual research with a single, clear summary.
+The backend is powered by a multi-threaded Python server (`ThreadingHTTPServer`) featuring a thread-safe in-memory 2-minute TTL cache that prevents upstream request throttling during high-frequency queries. When a ticker is searched, the engine executes vectorized time-series processing via `pandas`: computing 50/200-day rolling moving average crossovers, 14-period RSI momentum distributions, exponential MACD signal lines, and 52-week Fibonacci retracement levels. In parallel, a `ThreadPoolExecutor` queries comparative peer metrics while algorithmic evaluation pipelines parse balance sheets, income statements, and cash flow data to calculate Altman Z-Score and Piotroski F-Score metrics. The server also ingests options chains to extract near-the-money implied volatility and Put/Call volume ratios. On the frontend, a lightweight vanilla ES6+ client-side architecture renders interactive Chart.js visualizations, live ticker search, and consensus data models with sub-second response times.
 
 <p align="left">
   <img src="https://img.shields.io/badge/Python_3.9+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.9+" />
-  <img src="https://img.shields.io/badge/Yahoo_Finance-Zero_API_Keys-6001D2?style=flat-square&logo=yahoo&logoColor=white" alt="Yahoo Finance" />
-  <img src="https://img.shields.io/badge/Macro_Regime-S%26P_500_Trend-success?style=flat-square" alt="Macro Regime" />
-  <img src="https://img.shields.io/badge/Financial_Health-Piotroski_%7C_Altman_Z-blue?style=flat-square" alt="Financial Health" />
-  <img src="https://img.shields.io/badge/Technical_Signals-SMA_%7C_RSI_%7C_MACD-orange?style=flat-square" alt="Technical Signals" />
-  <img src="https://img.shields.io/badge/Smart_Money-Options_Flow_%7C_Insider_Trades-blueviolet?style=flat-square" alt="Smart Money" />
-  <img src="https://img.shields.io/badge/Chart.js-Interactive_Charts-FF6384?style=flat-square&logo=chartdotjs&logoColor=white" alt="Chart.js" />
+  <img src="https://img.shields.io/badge/ThreadingHTTPServer-Concurrent_Backend-007ACC?style=flat-square" alt="ThreadingHTTPServer" />
+  <img src="https://img.shields.io/badge/In--Memory_Cache-2--min_TTL-orange?style=flat-square" alt="In-Memory Cache" />
+  <img src="https://img.shields.io/badge/pandas-Vectorized_Time--Series-150458?style=flat-square&logo=pandas&logoColor=white" alt="pandas" />
+  <img src="https://img.shields.io/badge/Algorithms-Piotroski_%7C_Altman_Z_%7C_SMA_%7C_RSI-success?style=flat-square" alt="Algorithms" />
+  <img src="https://img.shields.io/badge/Options_Engine-IV_%7C_Put--Call_Ratios-blueviolet?style=flat-square" alt="Options Engine" />
+  <img src="https://img.shields.io/badge/Chart.js-Vanilla_ES6+-FF6384?style=flat-square&logo=chartdotjs&logoColor=white" alt="Chart.js" />
 </p>
 
 ---
