@@ -13,7 +13,10 @@
         <header>
             <h1>AI Stock Analysis <span>Dashboard</span></h1>
             <p>October 2026 Market Insights &amp; Investment Recommendations</p>
-            <a href="guide.html" class="guide-badge-btn" target="_blank">📚 Complete Beginner's Guide — What Moves Every Stock</a>
+            <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; margin-top: 0.75rem;">
+                <a href="guide.html" class="guide-badge-btn" target="_blank">📚 Complete Beginner's Guide — What Moves Every Stock</a>
+                <a href="#bill-splitter-section" class="guide-badge-btn" style="background: rgba(0, 230, 160, 0.12); border-color: #00E6A0; color: #00E6A0;">🧾 Jump to Bill Splitter App ↓</a>
+            </div>
         </header>
 
         <!-- TOP SUMMARY OVERVIEW -->
@@ -55,6 +58,27 @@
         <!-- 3D TILTED STOCKS GRID -->
         <section class="grid-section" id="stock-grid">
             <!-- 3D Tilted Cards injected here via JS -->
+        </section>
+
+        <!-- BILL SPLITTER APP (EMBEDDED JUST BELOW THE STOCK DASHBOARD) -->
+        <section id="bill-splitter-section" style="margin-top: 3.5rem; margin-bottom: 3rem; padding: 2.5rem 1.5rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(0, 230, 160, 0.25); border-radius: 24px; text-align: center; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);">
+            <div style="display: inline-block; padding: 0.35rem 0.9rem; border-radius: 9999px; background: rgba(0, 230, 160, 0.1); border: 1px solid rgba(0, 230, 160, 0.3); color: #00E6A0; font-size: 0.8rem; font-weight: 700; margin-bottom: 0.8rem;">
+                🧾 COMPANION UTILITY APP
+            </div>
+            <h2 style="font-size: 2rem; font-weight: 800; color: #fff; margin-bottom: 0.5rem;">
+                Itemized <span style="background: linear-gradient(90deg, #00E6A0, #4169E1); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Bill Splitter</span>
+            </h2>
+            <p style="color: #94a3b8; font-size: 0.95rem; max-width: 620px; margin: 0 auto 1.5rem auto; line-height: 1.5;">
+                Split shared restaurant &amp; group expenses with tax, tip, custom item assignments, and clean Venmo breakdown cards.
+            </p>
+            <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-bottom: 1.5rem;">
+                <a href="bill_splitter.html" target="_blank" style="display: inline-flex; align-items: center; gap: 0.5rem; background: linear-gradient(135deg, #00E6A0 0%, #3E63DD 100%); color: #000; font-weight: 800; padding: 0.75rem 1.8rem; font-size: 0.95rem; text-decoration: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 230, 160, 0.3); transition: transform 0.2s;">
+                    Open Bill Splitter in New Tab ➔
+                </a>
+            </div>
+            <div style="border-radius: 16px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <iframe src="bill_splitter.html" style="width: 100%; height: 750px; border: none; border-radius: 16px; background: #0A0A10;" title="Itemized Bill Splitter"></iframe>
+            </div>
         </section>
     </div>
 

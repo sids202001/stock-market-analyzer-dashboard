@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shared Bill Splitter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0A0A10;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --accent-1: #00E6A0; 
+            --accent-2: #3E63DD; 
+            --accent-glow: rgba(0, 230, 160, 0.4);
+            --font-sans: 'Outfit', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+        body {
+            background-color: var(--bg-dark);
+            color: #FFFFFF;
+            font-family: var(--font-sans);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        .font-mono {
+            font-family: var(--font-mono);
+        }
+        .background-glow {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: -1; overflow: hidden;
+        }
+        .glow-orb {
+            position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.3;
+        }
+        .orb-1 { width: 400px; height: 400px; background: var(--accent-1); top: -10%; left: -10%; }
+        .orb-2 { width: 300px; height: 300px; background: var(--accent-2); bottom: 10%; right: -5%; }
+        
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+        .gradient-text {
+            background: linear-gradient(90deg, #00E6A0, #4169E1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        input {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: #FFF;
+        }
+        input:focus {
+            outline: none;
+            border-color: var(--accent-1);
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .person-checkbox:checked + label {
+            background-color: rgba(0, 230, 160, 0.2);
+            border-color: #00E6A0;
+            color: #00E6A0;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="background-glow">
+        <div class="glow-orb orb-1"></div>
+        <div class="glow-orb orb-2"></div>
+    </div>
+
+    <div class="max-w-7xl mx-auto relative z-10">
+        
+        <header class="mb-10 text-center">
+            <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight mb-2">
+                <i class="ph-fill ph-receipt text-[#00E6A0]"></i> Shared <span class="gradient-text">Bill Splitter</span>
+            </h1>
+            <p class="text-[#9BA1A6] max-w-lg mx-auto">Split shared expenses equally or unequally (exact amounts, percentages, or shares) with automatic proportional tax & tip calculation.</p>
+        </header>
+
+        <!-- 1. Add People -->
+        <div class="glass-card p-6 mb-8 max-w-3xl mx-auto text-center">
+            <h2 class="text-xl font-bold mb-4 flex items-center justify-center gap-2">
+                <i class="ph-fill ph-users text-[#00E6A0]"></i> 1. Add People
+            </h2>
+            <div class="flex gap-2 max-w-lg mx-auto">
+                <input type="text" id="personName" placeholder="Enter name (e.g. Sid, Alex, Sam)" class="w-full py-2.5 px-4 rounded-xl" onkeypress="if(event.key === 'Enter') addPerson()">
+                <button onclick="addPerson()" class="bg-[#00E6A0] text-black font-bold py-2.5 px-6 rounded-xl hover:bg-[#00c98b] transition flex items-center gap-1.5 shrink-0">
+                    <i class="ph-bold ph-plus"></i> Add
+                </button>
+            </div>
+            <div id="peopleList" class="flex flex-wrap justify-center gap-2 mt-4 text-sm font-bold min-h-[36px]"></div>
+        </div>
+
+        <!-- 2. Add Item Card -->
+        <div class="max-w-3xl mx-auto mb-8">
+            <div class="glass-card p-6 flex flex-col h-full">
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <i class="ph-fill ph-shopping-cart text-[#00E6A0]"></i> 2. Add Item
+                </h2>
+                
+                <div class="space-y-5">
+                    <!-- Item Name and Price -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Item Name <span class="text-gray-500 font-normal lowercase">(optional)</span></label>
+                            <input type="text" id="itemName" placeholder="e.g. Pizza, Drinks, Groceries" class="w-full py-2.5 px-4 rounded-xl" onkeypress="if(event.key === 'Enter') document.getElementById('itemPrice').focus()">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Price ($)</label>
+                            <div class="relative">
+                                <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-mono font-bold">$</span>
+                                <input type="number" step="0.01" min="0" id="itemPrice" placeholder="0.00" class="w-full py-2.5 pl-8 pr-4 rounded-xl font-mono text-lg font-bold text-[#00E6A0]" oninput="handlePriceChange()" onkeypress="if(event.key === 'Enter') addItem()">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Split Mode Selector Tabs -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">How should this item be split?</label>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 bg-white/5 border border-white/10 rounded-xl">
+                            <button type="button" id="tab-equal" onclick="setSplitMode('equal')" class="split-tab py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 bg-[#3E63DD] text-white">
+                                <i class="ph-bold ph-equals"></i> Split Equally
+                            </button>
+                            <button type="button" id="tab-exact" onclick="setSplitMode('exact')" class="split-tab py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-gray-400 hover:text-white">
+                                <i class="ph-bold ph-currency-dollar"></i> Exact Amounts ($)
+                            </button>
+                            <button type="button" id="tab-percent" onclick="setSplitMode('percent')" class="split-tab py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-gray-400 hover:text-white">
+                                <i class="ph-bold ph-percent"></i> By Percent (%)
+                            </button>
+                            <button type="button" id="tab-shares" onclick="setSplitMode('shares')" class="split-tab py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-gray-400 hover:text-white">
+                                <i class="ph-bold ph-chart-pie-slice"></i> By Shares (x:y)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Split Configuration Box -->
+                    <div id="splitContainer" class="bg-black/30 border border-white/10 p-4 rounded-xl">
+                        <!-- Injected via JavaScript -->
+                    </div>
+
+                    <button onclick="addItem()" class="w-full bg-[#3E63DD] hover:bg-[#2e4bb0] text-white font-bold py-3.5 rounded-xl transition flex justify-center items-center gap-2 shadow-lg shadow-[#3E63DD]/20">
+                        <i class="ph-bold ph-plus-circle text-lg"></i> Add Item to Bill
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="glass-card p-6 mb-10" id="resultsSection" style="display: none;">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6 border-b border-white/10 pb-4 gap-2">
+                <div>
+                    <h2 class="text-2xl font-bold flex items-center gap-2"><i class="ph-fill ph-wallet text-[#00E6A0]"></i> Final Amounts Owed</h2>
+                    <p class="text-xs text-gray-400 mt-1">Includes proportional distribution of tax, tips, and fees.</p>
+                </div>
+            </div>
+            
+            <div id="balancesGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
+                <!-- Balances injected here -->
+            </div>
+
+            <h3 class="text-lg font-bold mb-4 text-gray-300 flex items-center gap-2">
+                <i class="ph-bold ph-receipt"></i> Digital Receipt Log
+            </h3>
+            <div class="overflow-x-auto mb-8 border border-white/10 rounded-xl">
+                <table class="min-w-full text-sm bg-white/5">
+                    <thead class="text-[#9BA1A6] uppercase text-xs bg-white/5 border-b border-white/10">
+                        <tr>
+                            <th class="text-left py-3 px-4">Item</th>
+                            <th class="text-right py-3 px-4">Cost</th>
+                            <th class="text-left py-3 px-4">Split Breakdown</th>
+                            <th class="text-center py-3 px-4">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="receiptBody" class="divide-y divide-white/5">
+                        <!-- Items go here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Bill Summary and Tax Input -->
+            <div class="bg-black/40 border border-white/10 rounded-xl p-6 mb-8">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-8">
+                    <div class="flex-1 w-full">
+                        <label class="block text-sm font-bold text-gray-300 mb-2"><i class="ph-bold ph-receipt text-[#00E6A0]"></i> Add Tax / Tip / Extra Fees</label>
+                        <div class="relative max-w-sm">
+                            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-mono font-bold text-lg">$</span>
+                            <input type="number" step="0.01" min="0" id="extraFee" placeholder="0.00" class="w-full py-3 pl-8 pr-4 rounded-xl text-lg font-bold font-mono" oninput="updateCalculations()">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">Split proportionally based on what each person ordered.</p>
+                    </div>
+
+                    <div class="flex-1 w-full bg-white/5 p-5 rounded-xl border border-white/10">
+                        <div class="flex justify-between mb-2">
+                            <span class="text-gray-400">Subtotal (Items):</span>
+                            <span class="font-bold font-mono" id="subtotalDisplay">$0.00</span>
+                        </div>
+                        <div class="flex justify-between mb-4 border-b border-white/10 pb-4">
+                            <span class="text-gray-400">Tax / Tip / Fees:</span>
+                            <span class="font-bold font-mono text-gray-300" id="taxDisplay">$0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-lg font-bold text-white">Total Bill:</span>
+                            <span class="text-3xl font-bold text-[#00E6A0] font-mono" id="totalBillDisplay">$0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center pt-2 border-t border-white/5">
+                            <span class="text-xs text-gray-500">Sum of Members:</span>
+                            <span class="text-xs font-mono transition-colors duration-300" id="membersTotalDisplay">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex flex-col md:flex-row justify-center items-center gap-4">
+                <button id="copyBtn" onclick="copyBillSummary()" class="bg-[#3E63DD] hover:bg-[#2e4bb0] text-white font-bold py-3 px-6 rounded-xl transition flex items-center gap-2">
+                    <i class="ph-bold ph-copy"></i> Copy Bill for WhatsApp / Message
+                </button>
+                <button onclick="downloadCSV()" class="bg-[#00E6A0] hover:bg-[#00c98b] text-black font-bold py-3 px-6 rounded-xl transition flex items-center gap-2">
+                    <i class="ph-bold ph-download-simple"></i> Download CSV
+                </button>
+            </div>
+            <div class="mt-4 flex justify-center">
+                <button onclick="resetAll()" class="text-red-400 hover:text-red-300 underline text-sm transition">Reset Entire Bill</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let people = [];
+        let items = [];
+        let totals = {};
+        let breakdowns = {};
+        let currentSplitMode = 'equal'; // 'equal' | 'exact' | 'percent' | 'shares'
+
+        const formatMoney = (amount) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+
+        // ================= PEOPLE MANAGEMENT =================
+        function addPerson() {
+            const input = document.getElementById('personName');
+            const name = input.value.trim();
+            if (name && !people.includes(name)) {
+                people.push(name);
+                input.value = '';
+                renderPeople();
+                renderSplitControls();
+                updateCalculations();
+            }
+        }
+
+        function removePerson(name) {
+            people = people.filter(p => p !== name);
+            // Clean up existing items
+            items.forEach(item => {
+                if (item.splits && item.splits[name]) {
+                    delete item.splits[name];
+                    item.sharedBy = Object.keys(item.splits);
+                } else if (item.sharedBy) {
+                    item.sharedBy = item.sharedBy.filter(p => p !== name);
+                }
+            });
+            renderPeople();
+            renderSplitControls();
+            updateCalculations();
+        }
+
+        function renderPeople() {
+            const list = document.getElementById('peopleList');
+            if (people.length === 0) {
+                list.innerHTML = '<span class="text-xs text-gray-500 italic py-1">No people added yet. Add at least one person above.</span>';
+                return;
+            }
+            list.innerHTML = people.map(p => `
+                <div class="bg-white/10 px-3.5 py-1.5 rounded-full flex items-center gap-2 border border-white/10">
+                    <span>${p}</span>
+                    <button onclick="removePerson('${p}')" class="text-red-400 hover:text-red-300 transition" title="Remove ${p}">
+                        <i class="ph-bold ph-x text-xs"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // ================= SPLIT MODE & CONTROLS =================
+        function setSplitMode(mode) {
+            currentSplitMode = mode;
+            
+            // Update tab button styles
+            ['equal', 'exact', 'percent', 'shares'].forEach(m => {
+                const tab = document.getElementById(`tab-${m}`);
+                if (m === mode) {
+                    tab.className = 'split-tab py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 bg-[#3E63DD] text-white shadow';
+                } else {
+                    tab.className = 'split-tab py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-gray-400 hover:text-white';
+                }
+            });
+
+            renderSplitControls();
+        }
+
+        function renderSplitControls() {
+            const container = document.getElementById('splitContainer');
+            if (people.length === 0) {
+                container.innerHTML = '<div class="text-center py-4 text-sm text-gray-400 italic">Please add people first to configure how items are split.</div>';
+                return;
+            }
+
+            const currentPrice = parseFloat(document.getElementById('itemPrice').value) || 0;
+
+            if (currentSplitMode === 'equal') {
+                container.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Select who is sharing this:</span>
+                            <div class="flex gap-3 text-xs">
+                                <button type="button" onclick="selectAllEqual()" class="text-[#00E6A0] hover:underline font-semibold">Select All</button>
+                                <button type="button" onclick="clearAllEqual()" class="text-red-400 hover:underline font-semibold">Clear All</button>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mb-2">
+                            ${people.map(p => `
+                                <div class="relative">
+                                    <input type="checkbox" id="check_${p}" value="${p}" class="person-checkbox hidden" checked onchange="updateEqualPreview()">
+                                    <label for="check_${p}" class="cursor-pointer border border-white/20 bg-white/5 px-4 py-2 rounded-xl text-sm transition select-none flex items-center justify-center font-medium hover:border-white/40">
+                                        ${p}
+                                    </label>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div id="equalSplitPreview" class="text-xs text-[#00E6A0] font-mono mt-2 pt-2 border-t border-white/5 min-h-[20px]">
+                            <!-- Preview shown here -->
+                        </div>
+                    </div>
+                `;
+                updateEqualPreview();
+            } else if (currentSplitMode === 'exact') {
+                container.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Enter dollar amount ($) for each person:</span>
+                            <div class="flex gap-2">
+                                <button type="button" onclick="splitExactEqually()" class="text-xs text-[#00E6A0] hover:underline font-semibold">Split Evenly</button>
+                                <button type="button" onclick="clearExactInputs()" class="text-xs text-red-400 hover:underline font-semibold">Clear</button>
+                            </div>
+                        </div>
+                        <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                            ${people.map(p => `
+                                <div class="flex items-center justify-between gap-3 bg-white/5 p-2.5 rounded-xl border border-white/5">
+                                    <span class="font-bold text-sm text-gray-200 flex-1 truncate">${p}</span>
+                                    <div class="flex items-center gap-2">
+                                        <div class="relative w-32">
+                                            <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 font-mono text-sm">$</span>
+                                            <input type="number" step="0.01" min="0" placeholder="0.00" data-person="${p}" class="exact-amount-input w-full py-1.5 pl-6 pr-2 rounded-lg font-mono text-sm font-bold text-right" oninput="updateExactStatus()" onkeypress="if(event.key === 'Enter') addItem()">
+                                        </div>
+                                        <button type="button" onclick="fillExactRemaining('${p}')" class="text-[11px] bg-white/10 hover:bg-white/20 text-gray-300 px-2 py-1.5 rounded-lg whitespace-nowrap transition" title="Fill remaining balance">
+                                            Fill Rem.
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div id="exactStatusBar" class="mt-3 pt-3 border-t border-white/10 text-xs flex flex-wrap justify-between items-center gap-2">
+                            <!-- Status bar -->
+                        </div>
+                    </div>
+                `;
+                updateExactStatus();
+            } else if (currentSplitMode === 'percent') {
+                container.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Enter percentage (%) for each person:</span>
+                            <div class="flex gap-2">
+                                <button type="button" onclick="splitPercentEqually()" class="text-xs text-[#00E6A0] hover:underline font-semibold">Split % Evenly</button>
+                                <button type="button" onclick="clearPercentInputs()" class="text-xs text-red-400 hover:underline font-semibold">Clear</button>
+                            </div>
+                        </div>
+                        <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                            ${people.map(p => `
+                                <div class="flex items-center justify-between gap-3 bg-white/5 p-2.5 rounded-xl border border-white/5">
+                                    <span class="font-bold text-sm text-gray-200 flex-1 truncate">${p}</span>
+                                    <div class="flex items-center gap-2">
+                                        <span id="percentDollar_${p}" class="text-xs font-mono text-gray-400 w-16 text-right">$0.00</span>
+                                        <div class="relative w-24">
+                                            <input type="number" step="1" min="0" max="100" placeholder="0" data-person="${p}" class="percent-amount-input w-full py-1.5 pl-3 pr-6 rounded-lg font-mono text-sm font-bold text-right" oninput="updatePercentStatus()" onkeypress="if(event.key === 'Enter') addItem()">
+                                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 font-mono text-xs">%</span>
+                                        </div>
+                                        <button type="button" onclick="fillPercentRemaining('${p}')" class="text-[11px] bg-white/10 hover:bg-white/20 text-gray-300 px-2 py-1.5 rounded-lg whitespace-nowrap transition" title="Fill remaining percent">
+                                            Fill %
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div id="percentStatusBar" class="mt-3 pt-3 border-t border-white/10 text-xs flex flex-wrap justify-between items-center gap-2">
+                            <!-- Status bar -->
+                        </div>
+                    </div>
+                `;
+                updatePercentStatus();
+            } else if (currentSplitMode === 'shares') {
+                container.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Enter share ratio / units (e.g. 1 share, 2 shares):</span>
+                            <button type="button" onclick="resetShares()" class="text-xs text-gray-400 hover:text-white hover:underline font-semibold">Reset to 1</button>
+                        </div>
+                        <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                            ${people.map(p => `
+                                <div class="flex items-center justify-between gap-3 bg-white/5 p-2.5 rounded-xl border border-white/5">
+                                    <span class="font-bold text-sm text-gray-200 flex-1 truncate">${p}</span>
+                                    <div class="flex items-center gap-3">
+                                        <span id="sharesDollar_${p}" class="text-xs font-mono text-[#00E6A0] text-right">$0.00</span>
+                                        <div class="flex items-center bg-black/40 rounded-lg border border-white/10 overflow-hidden">
+                                            <button type="button" onclick="adjustShare('${p}', -1)" class="px-2.5 py-1 text-gray-400 hover:text-white hover:bg-white/10 transition font-bold text-base">-</button>
+                                            <input type="number" step="0.5" min="0" value="1" data-person="${p}" class="shares-amount-input w-12 py-1 text-center font-mono text-sm font-bold bg-transparent border-none focus:outline-none" oninput="updateSharesStatus()" onkeypress="if(event.key === 'Enter') addItem()">
+                                            <button type="button" onclick="adjustShare('${p}', 1)" class="px-2.5 py-1 text-gray-400 hover:text-white hover:bg-white/10 transition font-bold text-base">+</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div id="sharesStatusBar" class="mt-3 pt-3 border-t border-white/10 text-xs flex flex-wrap justify-between items-center gap-2">
+                            <!-- Status bar -->
+                        </div>
+                    </div>
+                `;
+                updateSharesStatus();
+            }
+        }
+
+        function handlePriceChange() {
+            if (currentSplitMode === 'equal') updateEqualPreview();
+            else if (currentSplitMode === 'exact') updateExactStatus();
+            else if (currentSplitMode === 'percent') updatePercentStatus();
+            else if (currentSplitMode === 'shares') updateSharesStatus();
+        }
+
+        // ================= EQUAL MODE HELPERS =================
+        function selectAllEqual() {
+            document.querySelectorAll('.person-checkbox').forEach(cb => cb.checked = true);
+            updateEqualPreview();
+        }
+
+        function clearAllEqual() {
+            document.querySelectorAll('.person-checkbox').forEach(cb => cb.checked = false);
+            updateEqualPreview();
+        }
+
+        function updateEqualPreview() {
+            const preview = document.getElementById('equalSplitPreview');
+            if (!preview) return;
+            const checkedCount = document.querySelectorAll('.person-checkbox:checked').length;
+            const price = parseFloat(document.getElementById('itemPrice').value) || 0;
+            if (checkedCount === 0) {
+                preview.innerHTML = '<span class="text-amber-400">⚠️ Please select at least one person sharing this item.</span>';
+            } else if (price > 0) {
+                const perPerson = price / checkedCount;
+                preview.innerHTML = `Split among <strong>${checkedCount}</strong> person(s): <span class="font-bold">${formatMoney(perPerson)}</span> each`;
+            } else {
+                preview.innerHTML = `${checkedCount} person(s) selected`;
+            }
+        }
+
+        // ================= EXACT MODE HELPERS =================
+        function clearExactInputs() {
+            document.querySelectorAll('.exact-amount-input').forEach(inp => inp.value = '');
+            updateExactStatus();
+        }
+
+        function splitExactEqually() {
+            const price = parseFloat(document.getElementById('itemPrice').value) || 0;
+            if (price <= 0 || people.length === 0) return;
+            const inputs = Array.from(document.querySelectorAll('.exact-amount-input'));
+            const perPerson = (price / inputs.length).toFixed(2);
+            let runningSum = 0;
+            inputs.forEach((inp, idx) => {
+                if (idx === inputs.length - 1) {
+                    inp.value = (price - runningSum).toFixed(2);
+                } else {
+                    inp.value = perPerson;
+                    runningSum += parseFloat(perPerson);
+                }
+            });
+            updateExactStatus();
+        }
+
+        function fillExactRemaining(person) {
+            const targetPrice = parseFloat(document.getElementById('itemPrice').value) || 0;
+            const inputs = Array.from(document.querySelectorAll('.exact-amount-input'));
+            let currentAllocatedExceptTarget = 0;
+            let targetInput = null;
+
+            inputs.forEach(inp => {
+                if (inp.dataset.person === person) {
+                    targetInput = inp;
+                } else {
+                    currentAllocatedExceptTarget += parseFloat(inp.value) || 0;
+                }
+            });
+
+            if (targetInput) {
+                const remaining = Math.max(0, targetPrice - currentAllocatedExceptTarget);
+                targetInput.value = remaining > 0 ? remaining.toFixed(2) : '';
+                updateExactStatus();
+            }
+        }
+
+        function updateExactStatus() {
+            const statusBar = document.getElementById('exactStatusBar');
+            if (!statusBar) return;
+
+            const targetPrice = parseFloat(document.getElementById('itemPrice').value) || 0;
+            const inputs = Array.from(document.querySelectorAll('.exact-amount-input'));
+            let allocated = 0;
+            inputs.forEach(inp => {
+                allocated += parseFloat(inp.value) || 0;
+            });
+
+            allocated = Math.round((allocated + Number.EPSILON) * 100) / 100;
+            const remaining = Math.round((targetPrice - allocated + Number.EPSILON) * 100) / 100;
+
+            if (targetPrice <= 0 && allocated > 0) {
+                statusBar.innerHTML = `
+                    <div class="text-gray-300">Sum: <span class="font-bold text-[#00E6A0] font-mono">${formatMoney(allocated)}</span></div>
+                    <button type="button" onclick="document.getElementById('itemPrice').value = '${allocated.toFixed(2)}'; updateExactStatus();" class="text-xs bg-[#3E63DD]/30 text-[#3E63DD] hover:bg-[#3E63DD] hover:text-white px-2.5 py-1 rounded-lg transition font-semibold">
+                        Set Total Price to ${formatMoney(allocated)}
+                    </button>
+                `;
+                return;
+            }
+
+            if (Math.abs(remaining) < 0.01 && targetPrice > 0) {
+                statusBar.innerHTML = `
+                    <span class="text-[#00E6A0] font-bold flex items-center gap-1 font-mono">
+                        <i class="ph-bold ph-check-circle"></i> Exactly matched: ${formatMoney(allocated)} / ${formatMoney(targetPrice)}
+                    </span>
+                `;
+            } else if (remaining > 0) {
+                statusBar.innerHTML = `
+                    <div class="text-amber-400 font-medium">
+                        Allocated: <span class="font-bold font-mono">${formatMoney(allocated)}</span> / ${formatMoney(targetPrice)} 
+                        (Remaining: <span class="font-bold font-mono">${formatMoney(remaining)}</span>)
+                    </div>
+                `;
+            } else {
+                statusBar.innerHTML = `
+                    <div class="text-red-400 font-medium">
+                        ⚠️ Overallocated by <span class="font-bold font-mono">${formatMoney(Math.abs(remaining))}</span> (${formatMoney(allocated)} of ${formatMoney(targetPrice)})
+                    </div>
+                `;
+            }
+        }
+
+        // ================= PERCENT MODE HELPERS =================
+        function clearPercentInputs() {
+            document.querySelectorAll('.percent-amount-input').forEach(inp => inp.value = '');
+            updatePercentStatus();
+        }
+
+        function splitPercentEqually() {
+            if (people.length === 0) return;
+            const inputs = Array.from(document.querySelectorAll('.percent-amount-input'));
+            const perPerson = Math.floor(100 / inputs.length);
+            const remainder = 100 - (perPerson * inputs.length);
+            inputs.forEach((inp, idx) => {
+                inp.value = idx === 0 ? perPerson + remainder : perPerson;
+            });
+            updatePercentStatus();
+        }
+
+        function fillPercentRemaining(person) {
+            const inputs = Array.from(document.querySelectorAll('.percent-amount-input'));
+            let allocatedOther = 0;
+            let targetInput = null;
+
+            inputs.forEach(inp => {
+                if (inp.dataset.person === person) {
+                    targetInput = inp;
+                } else {
+                    allocatedOther += parseFloat(inp.value) || 0;
+                }
+            });
+
+            if (targetInput) {
+                const rem = Math.max(0, 100 - allocatedOther);
+                targetInput.value = rem > 0 ? rem : '';
+                updatePercentStatus();
+            }
+        }
+
+        function updatePercentStatus() {
+            const statusBar = document.getElementById('percentStatusBar');
+            if (!statusBar) return;
+
+            const targetPrice = parseFloat(document.getElementById('itemPrice').value) || 0;
+            const inputs = Array.from(document.querySelectorAll('.percent-amount-input'));
+            let totalPercent = 0;
+
+            inputs.forEach(inp => {
+                const pName = inp.dataset.person;
+                const pVal = parseFloat(inp.value) || 0;
+                totalPercent += pVal;
+                
+                const dollarDisplay = document.getElementById(`percentDollar_${pName}`);
+                if (dollarDisplay) {
+                    const dollarAmt = targetPrice > 0 ? (pVal / 100) * targetPrice : 0;
+                    dollarDisplay.innerText = formatMoney(dollarAmt);
+                }
+            });
+
+            totalPercent = Math.round(totalPercent * 10) / 10;
+            const remaining = Math.round((100 - totalPercent) * 10) / 10;
+
+            if (Math.abs(remaining) < 0.01) {
+                statusBar.innerHTML = `
+                    <span class="text-[#00E6A0] font-bold flex items-center gap-1 font-mono">
+                        <i class="ph-bold ph-check-circle"></i> 100% Allocated (${formatMoney(targetPrice)})
+                    </span>
+                `;
+            } else if (remaining > 0) {
+                statusBar.innerHTML = `
+                    <div class="text-amber-400 font-medium">
+                        Allocated: <span class="font-bold font-mono">${totalPercent}%</span> (Remaining: <span class="font-bold font-mono">${remaining}%</span>)
+                    </div>
+                    <button type="button" onclick="splitPercentEqually()" class="text-xs text-[#00E6A0] hover:underline font-semibold">Distribute Evenly</button>
+                `;
+            } else {
+                statusBar.innerHTML = `
+                    <div class="text-red-400 font-medium">
+                        ⚠️ Overallocated by <span class="font-bold font-mono">${Math.abs(remaining)}%</span> (${totalPercent}% of 100%)
+                    </div>
+                `;
+            }
+        }
+
+        // ================= SHARES MODE HELPERS =================
+        function adjustShare(person, delta) {
+            const inp = document.querySelector(`.shares-amount-input[data-person="${person}"]`);
+            if (inp) {
+                let current = parseFloat(inp.value) || 0;
+                current = Math.max(0, current + delta);
+                inp.value = current;
+                updateSharesStatus();
+            }
+        }
+
+        function resetShares() {
+            document.querySelectorAll('.shares-amount-input').forEach(inp => inp.value = '1');
+            updateSharesStatus();
+        }
+
+        function updateSharesStatus() {
+            const statusBar = document.getElementById('sharesStatusBar');
+            if (!statusBar) return;
+
+            const targetPrice = parseFloat(document.getElementById('itemPrice').value) || 0;
+            const inputs = Array.from(document.querySelectorAll('.shares-amount-input'));
+            let totalShares = 0;
+
+            inputs.forEach(inp => {
+                totalShares += parseFloat(inp.value) || 0;
+            });
+
+            inputs.forEach(inp => {
+                const pName = inp.dataset.person;
+                const pVal = parseFloat(inp.value) || 0;
+                const dollarDisplay = document.getElementById(`sharesDollar_${pName}`);
+                if (dollarDisplay) {
+                    if (totalShares > 0 && targetPrice > 0 && pVal > 0) {
+                        const shareAmt = (pVal / totalShares) * targetPrice;
+                        const sharePercent = ((pVal / totalShares) * 100).toFixed(0);
+                        dollarDisplay.innerText = `${formatMoney(shareAmt)} (${sharePercent}%)`;
+                    } else {
+                        dollarDisplay.innerText = '$0.00';
+                    }
+                }
+            });
+
+            if (totalShares > 0) {
+                statusBar.innerHTML = `
+                    <span class="text-gray-300">
+                        Total Shares: <strong class="text-white font-mono">${totalShares}</strong>
+                        ${targetPrice > 0 ? `• Value per share: <strong class="text-[#00E6A0] font-mono">${formatMoney(targetPrice / totalShares)}</strong>` : ''}
+                    </span>
+                `;
+            } else {
+                statusBar.innerHTML = '<span class="text-amber-400 font-medium">⚠️ Please assign at least 1 share.</span>';
+            }
+        }
+
+        // ================= ADD ITEM ENGINE =================
+        function addItem() {
+            if (people.length === 0) {
+                alert('Please add people first!');
+                return;
+            }
+
+            let name = document.getElementById('itemName').value.trim();
+            let price = parseFloat(document.getElementById('itemPrice').value);
+            
+            let splits = {};
+            let splitDetailsText = '';
+
+            if (currentSplitMode === 'equal') {
+                if (isNaN(price) || price <= 0) {
+                    alert('Please enter a valid total price.');
+                    return;
+                }
+                const checked = Array.from(document.querySelectorAll('.person-checkbox:checked')).map(cb => cb.value);
+                if (checked.length === 0) {
+                    alert('Please select at least one person sharing this item.');
+                    return;
+                }
+                const perPerson = price / checked.length;
+                checked.forEach(p => {
+                    splits[p] = perPerson;
+                });
+                splitDetailsText = `Equal split (${checked.length})`;
+            } else if (currentSplitMode === 'exact') {
+                const inputs = Array.from(document.querySelectorAll('.exact-amount-input'));
+                let sumExact = 0;
+                inputs.forEach(inp => {
+                    const amt = parseFloat(inp.value) || 0;
+                    if (amt > 0) {
+                        splits[inp.dataset.person] = amt;
+                        sumExact += amt;
+                    }
+                });
+
+                if (Object.keys(splits).length === 0) {
+                    alert('Please enter an amount for at least one person.');
+                    return;
+                }
+
+                // If user didn't specify total price, auto-derive from sum
+                if (isNaN(price) || price <= 0) {
+                    price = sumExact;
+                    document.getElementById('itemPrice').value = sumExact.toFixed(2);
+                } else {
+                    const diff = Math.abs(price - sumExact);
+                    if (diff > 0.02) {
+                        if (confirm(`The entered amounts ($${sumExact.toFixed(2)}) do not match the total item price ($${price.toFixed(2)}).\n\nClick OK to adjust the item price to $${sumExact.toFixed(2)} and add it, or Cancel to edit amounts.`)) {
+                            price = sumExact;
+                            document.getElementById('itemPrice').value = sumExact.toFixed(2);
+                        } else {
+                            return;
+                        }
+                    }
+                }
+                splitDetailsText = 'Exact amounts';
+            } else if (currentSplitMode === 'percent') {
+                if (isNaN(price) || price <= 0) {
+                    alert('Please enter a valid total price.');
+                    return;
+                }
+                const inputs = Array.from(document.querySelectorAll('.percent-amount-input'));
+                let totalPercent = 0;
+                inputs.forEach(inp => {
+                    const pct = parseFloat(inp.value) || 0;
+                    if (pct > 0) {
+                        splits[inp.dataset.person] = (pct / 100) * price;
+                        totalPercent += pct;
+                    }
+                });
+
+                if (Math.abs(100 - totalPercent) > 0.5) {
+                    alert(`Total percentage must equal 100% (currently ${totalPercent}%).`);
+                    return;
+                }
+                splitDetailsText = 'Custom %';
+            } else if (currentSplitMode === 'shares') {
+                if (isNaN(price) || price <= 0) {
+                    alert('Please enter a valid total price.');
+                    return;
+                }
+                const inputs = Array.from(document.querySelectorAll('.shares-amount-input'));
+                let totalShares = 0;
+                inputs.forEach(inp => {
+                    totalShares += parseFloat(inp.value) || 0;
+                });
+
+                if (totalShares <= 0) {
+                    alert('Total shares must be greater than 0.');
+                    return;
+                }
+
+                inputs.forEach(inp => {
+                    const shares = parseFloat(inp.value) || 0;
+                    if (shares > 0) {
+                        splits[inp.dataset.person] = (shares / totalShares) * price;
+                    }
+                });
+                splitDetailsText = 'By shares';
+            }
+
+            if (!name) {
+                name = `Item #${items.length + 1}`;
+            }
+
+            items.push({
+                id: Date.now(),
+                name,
+                price,
+                mode: currentSplitMode,
+                splitDetailsText,
+                sharedBy: Object.keys(splits),
+                splits
+            });
+
+            // Reset inputs for rapid entry
+            document.getElementById('itemName').value = '';
+            document.getElementById('itemPrice').value = '';
+            renderSplitControls();
+            document.getElementById('itemName').focus();
+
+            updateCalculations();
+        }
+
+        function removeItem(id) {
+            items = items.filter(item => item.id !== id);
+            updateCalculations();
+        }
+
+        // ================= CALCULATIONS & RENDERING =================
+        function updateCalculations() {
+            const extraFeeInput = document.getElementById('extraFee');
+            const extraFee = extraFeeInput ? parseFloat(extraFeeInput.value) || 0 : 0;
+
+            if (items.length > 0 || extraFee > 0) {
+                document.getElementById('resultsSection').style.display = 'block';
+            } else {
+                document.getElementById('resultsSection').style.display = 'none';
+                return;
+            }
+
+            // Render Digital Receipt Log
+            const tbody = document.getElementById('receiptBody');
+            tbody.innerHTML = items.map(item => {
+                const breakdownBadges = Object.entries(item.splits).map(([person, amt]) => {
+                    return `<span class="inline-flex items-center bg-white/10 border border-white/10 px-2 py-0.5 rounded text-xs mr-1.5 mb-1 font-mono">
+                        <span class="font-bold text-gray-200">${person}:</span>&nbsp;<span class="text-[#00E6A0]">${formatMoney(amt)}</span>
+                    </span>`;
+                }).join('');
+
+                const modeBadge = item.mode !== 'equal' 
+                    ? `<span class="bg-[#3E63DD]/30 text-[#3E63DD] border border-[#3E63DD]/40 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ml-1">${item.splitDetailsText}</span>` 
+                    : '';
+
+                return `
+                <tr class="hover:bg-white/5 transition border-b border-white/5">
+                    <td class="py-3 px-4">
+                        <div class="font-bold text-white">${item.name} ${modeBadge}</div>
+                    </td>
+                    <td class="py-3 px-4 text-right font-bold text-[#00E6A0] font-mono">${formatMoney(item.price)}</td>
+                    <td class="py-3 px-4">
+                        <div class="flex flex-wrap">${breakdownBadges}</div>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <button onclick="removeItem(${item.id})" class="text-red-400 hover:text-red-300 transition" title="Delete Item">
+                            <i class="ph-bold ph-trash text-base"></i>
+                        </button>
+                    </td>
+                </tr>
+            `}).join('');
+
+            // Calculate Totals & Breakdowns
+            totals = {};
+            breakdowns = {};
+            people.forEach(p => {
+                totals[p] = 0;
+                breakdowns[p] = [];
+            });
+
+            let subtotal = 0;
+            items.forEach(item => {
+                subtotal += item.price;
+                Object.entries(item.splits).forEach(([p, amt]) => {
+                    if (totals[p] !== undefined) {
+                        totals[p] += amt;
+                        breakdowns[p].push({ name: item.name, amount: amt });
+                    }
+                });
+            });
+
+            // Update Summary Displays
+            if (document.getElementById('subtotalDisplay')) document.getElementById('subtotalDisplay').innerText = formatMoney(subtotal);
+            if (document.getElementById('taxDisplay')) document.getElementById('taxDisplay').innerText = formatMoney(extraFee);
+
+            let totalBill = subtotal + extraFee;
+            if (document.getElementById('totalBillDisplay')) document.getElementById('totalBillDisplay').innerText = formatMoney(totalBill);
+
+            // Proportional Tax/Fee allocation
+            if (subtotal > 0 && extraFee > 0) {
+                people.forEach(p => {
+                    const personSubtotal = totals[p];
+                    const personShareOfFee = (personSubtotal / subtotal) * extraFee;
+                    if (personShareOfFee > 0) {
+                        totals[p] += personShareOfFee;
+                        breakdowns[p].push({ name: 'Tax / Fees', amount: personShareOfFee, isFee: true });
+                    }
+                });
+            } else if (subtotal === 0 && people.length > 0 && extraFee > 0) {
+                const splitExtra = extraFee / people.length;
+                people.forEach(p => {
+                    totals[p] += splitExtra;
+                    breakdowns[p].push({ name: 'Tax / Fees', amount: splitExtra, isFee: true });
+                });
+            }
+
+            // Render Final Amount Balances Grid
+            const grid = document.getElementById('balancesGrid');
+            grid.innerHTML = people.map(p => {
+                const itemizedList = breakdowns[p].map(b => `
+                    <div class="flex justify-between items-center text-[11px] text-gray-400 font-mono py-0.5">
+                        <span class="truncate pr-2 ${b.isFee ? 'text-[#00E6A0]/80 italic' : ''}">${b.name}:</span>
+                        <span class="font-bold text-gray-300 shrink-0">${formatMoney(b.amount)}</span>
+                    </div>
+                `).join('');
+
+                return `
+                <div class="bg-[#3E63DD]/15 border border-[#3E63DD]/40 p-4 rounded-xl relative overflow-hidden flex flex-col justify-between hover:border-[#3E63DD]/70 transition shadow-lg">
+                    <div>
+                        <div class="flex justify-between items-start mb-1">
+                            <h3 class="text-white uppercase text-xs font-bold tracking-wider">${p}</h3>
+                            <span class="text-[10px] text-gray-400 font-mono">${breakdowns[p].length} item(s)</span>
+                        </div>
+                        <p class="text-3xl font-extrabold text-[#00E6A0] font-mono mb-3">${formatMoney(totals[p])}</p>
+                    </div>
+                    <div class="mt-2 pt-2 border-t border-[#3E63DD]/30 max-h-32 overflow-y-auto pr-1">
+                        ${itemizedList || '<div class="text-[11px] text-gray-500 italic">No items assigned</div>'}
+                    </div>
+                </div>
+            `}).join('');
+
+            // Verification Check (Sum of Members == Total Bill)
+            let membersTotal = 0;
+            people.forEach(p => membersTotal += totals[p]);
+            const membersDisplay = document.getElementById('membersTotalDisplay');
+            if (membersDisplay) {
+                if (Math.abs(membersTotal - totalBill) < 0.01) {
+                    membersDisplay.className = 'text-xs font-mono text-[#00E6A0] transition-colors duration-300 font-bold';
+                    membersDisplay.innerHTML = `${formatMoney(membersTotal)} <i class="ph-bold ph-check-circle"></i>`;
+                } else {
+                    membersDisplay.className = 'text-xs font-mono text-amber-400 transition-colors duration-300 font-bold';
+                    membersDisplay.innerText = formatMoney(membersTotal);
+                }
+            }
+        }
+
+        // ================= EXPORT & RESET =================
+        function resetAll() {
+            if (confirm('Are you sure you want to delete all items and start over?')) {
+                items = [];
+                document.getElementById('extraFee').value = '';
+                document.getElementById('itemName').value = '';
+                document.getElementById('itemPrice').value = '';
+                renderSplitControls();
+                updateCalculations();
+            }
+        }
+
+        function copyBillSummary() {
+            if (people.length === 0) return;
+            
+            let text = `🧾 BILL SPLIT SUMMARY\n`;
+            text += `Total Bill: ${document.getElementById('totalBillDisplay').innerText}\n`;
+            const taxVal = document.getElementById('taxDisplay').innerText;
+            if (taxVal !== '$0.00') {
+                text += `Subtotal: ${document.getElementById('subtotalDisplay').innerText} | Tax/Fees: ${taxVal}\n`;
+            }
+            text += `========================\n\n`;
+            
+            people.forEach(p => {
+                if (totals[p] > 0) {
+                    text += `👤 ${p} owes: ${formatMoney(totals[p])}\n`;
+                    breakdowns[p].forEach(b => {
+                        text += `   • ${b.name}: ${formatMoney(b.amount)}\n`;
+                    });
+                    text += `\n`;
+                }
+            });
+
+            text += `Generated with Shared Bill Splitter`;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('copyBtn');
+                const originalContent = btn.innerHTML;
+                btn.innerHTML = `<i class="ph-bold ph-check"></i> Copied to Clipboard!`;
+                btn.classList.add('bg-[#00E6A0]', 'text-black');
+                btn.classList.remove('bg-[#3E63DD]', 'text-white');
+                setTimeout(() => {
+                    btn.innerHTML = originalContent;
+                    btn.classList.remove('bg-[#00E6A0]', 'text-black');
+                    btn.classList.add('bg-[#3E63DD]', 'text-white');
+                }, 2000);
+            }).catch(err => {
+                alert('Failed to copy. ' + err);
+            });
+        }
+
+        function downloadCSV() {
+            if (people.length === 0) return;
+
+            const fmt = (num) => Number((num || 0).toFixed(2));
+            let csvContent = "data:text/csv;charset=utf-8,";
+            
+            // Header
+            csvContent += `Item,Item Price,Split Mode,${people.map(p => `"${p}"`).join(',')}\n`;
+            
+            // Items
+            items.forEach(item => {
+                let row = [`"${item.name}"`, fmt(item.price), `"${item.splitDetailsText}"`];
+                people.forEach(p => {
+                    if (item.splits && item.splits[p] !== undefined) {
+                        row.push(fmt(item.splits[p]));
+                    } else {
+                        row.push(`""`);
+                    }
+                });
+                csvContent += row.join(',') + '\n';
+            });
+
+            // Tax/Tip
+            const extraFeeInput = document.getElementById('extraFee');
+            const extraFee = extraFeeInput ? parseFloat(extraFeeInput.value) || 0 : 0;
+            
+            if (extraFee > 0) {
+                let row = [`"Tax / Tip / Fees"`, fmt(extraFee), `"Proportional"`];
+                let subtotal = items.reduce((sum, item) => sum + item.price, 0);
+                
+                people.forEach(p => {
+                    if (subtotal > 0) {
+                        let personSubtotal = 0;
+                        items.forEach(item => {
+                            if (item.splits && item.splits[p]) {
+                                personSubtotal += item.splits[p];
+                            }
+                        });
+                        const personShareOfFee = (personSubtotal / subtotal) * extraFee;
+                        row.push(personShareOfFee > 0 ? fmt(personShareOfFee) : `""`);
+                    } else {
+                        const splitExtra = extraFee / people.length;
+                        row.push(fmt(splitExtra));
+                    }
+                });
+                csvContent += row.join(',') + '\n';
+            }
+
+            csvContent += `\n`;
+            
+            // Totals Row
+            let totalRow = [`"Total Amount"`, fmt(items.reduce((s,i)=>s+i.price,0) + extraFee), `""`];
+            people.forEach(p => {
+                totalRow.push(fmt(totals[p]));
+            });
+            csvContent += totalRow.join(',') + '\n';
+
+            // Trigger download
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "bill_split_report.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Initialize empty state
+        renderPeople();
+        renderSplitControls();
+    </script>
+</body>
+</html>
