@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Stock Analysis Dashboard | 3D Investment Decision Cards</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=202">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <header>
+            <h1>AI Stock Analysis <span>Dashboard</span></h1>
+            <p>October 2026 Market Insights &amp; Investment Recommendations</p>
+            <a href="guide.html" class="guide-badge-btn" target="_blank">📚 Complete Beginner's Guide — What Moves Every Stock</a>
+        </header>
+
+        <!-- TOP SUMMARY OVERVIEW -->
+        <section class="summary-section">
+            <div class="glass-card highlight-card">
+                <h2>Market Overview & Strategy</h2>
+                <p><strong>Focus:</strong> High-Quality Fundamentals & Secular AI Tailwinds</p>
+                <p class="details">Navigating the current market by prioritizing companies with wide economic moats, pristine free cash flow generation, and attractive risk-reward entry zones.</p>
+            </div>
+            <div class="glass-card highlight-card" id="macro-card" style="border: 1px solid rgba(74, 222, 128, 0.35); background: linear-gradient(145deg, rgba(74, 222, 128, 0.08), rgba(59, 130, 246, 0.05));">
+                <h2>🌐 S&P 500 Macro Regime</h2>
+                <p><strong>Benchmark Tide:</strong> <span id="macro-pill" style="color:#4ade80;font-weight:700;">BULL MARKET 🟢 (Risk-On)</span></p>
+                <p class="details" id="macro-text">S&P 500 is trading above rising 50-day and 200-day moving averages. Favorable macro backdrop for disciplined equity entries.</p>
+            </div>
+            <div class="glass-card highlight-card" id="integrity-card" style="border: 1px solid rgba(56, 189, 248, 0.35); background: linear-gradient(145deg, rgba(56, 189, 248, 0.08), rgba(16, 185, 129, 0.05));">
+                <h2>🛡️ Data Integrity Harness</h2>
+                <p><strong>SEC Verification:</strong> <span id="integrity-badge-pill" style="color:#38bdf8;font-weight:700;">PASS 🟢 (100% Invariant)</span></p>
+                <p class="details" id="integrity-desc">DCF price-invariance guaranteed • Verified vs SEC EDGAR • 0.00 price correlation • Zero silent staleness.</p>
+            </div>
+        </section>
+
+        <!-- DAILY SPOTLIGHT (3D Tilted Card) -->
+        <section class="daily-spotlight" id="daily-spotlight">
+            <!-- Injected via JS -->
+        </section>
+
+        <!-- SEARCH & FILTER CONTROLS -->
+        <div class="controls-container">
+            <input type="text" id="search-input" class="glass-input" placeholder="Search by ticker or company (e.g. NVDA, MSFT, AAPL, AMZN, PLTR, COST)..." autocomplete="off">
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-filter="All">All</button>
+                <button class="filter-btn" data-filter="Strong Buy">Strong Buys</button>
+                <button class="filter-btn" data-filter="Buy">Buys</button>
+                <button class="filter-btn" data-filter="Hold">Holds</button>
+                <button class="filter-btn" data-filter="Avoid">Avoid / Sell</button>
+            </div>
+        </div>
+
+        <!-- 3D TILTED STOCKS GRID -->
+        <section class="grid-section" id="stock-grid">
+            <!-- 3D Tilted Cards injected here via JS -->
+        </section>
+    </div>
+
+    <!-- 8-SECTION INVESTMENT DECISION COCKPIT MODAL -->
+    <div id="detail-modal" class="modal-overlay" onclick="if(event.target === this) window.closeModalFunc()">
+        <div class="modal-content glass-card" id="modal-box">
+            <span class="close-btn" id="close-modal" onclick="window.closeModalFunc()">&times;</span>
+            <div id="modal-body">
+                <!-- 8-Section Decision Cockpit injected here via JS -->
+            </div>
+        </div>
+    </div>
+
+    <script src="script_final.js?v=215"></script>
+</body>
+</html>

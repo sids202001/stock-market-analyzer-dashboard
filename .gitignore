@@ -2,5 +2,14 @@ venv/
 __pycache__/
 *.pyc
 *.log
+*.jsonl
 .env
 .DS_Store
+.vercel
+_uv/
+.sec_cache/
+.pytest_cache/
+backups/
+scratch_*.txt
+*.png
+*.jpg
