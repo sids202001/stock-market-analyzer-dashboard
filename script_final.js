@@ -515,6 +515,12 @@ async function openDecisionModal(ticker) {
         const data = await res.json();
         renderDecisionModalContent(data);
     } catch (err) {
+        if (typeof generateDetailedData === 'function') {
+            const stock = stocks.find(s => s.ticker === ticker) || { ticker, name: ticker, price: '$0.00', rawPrice: 0 };
+            modalBody.innerHTML = generateDetailedData(stock);
+            if (typeof window.switchDetailTab === 'function') window.switchDetailTab('tab-tech');
+            return;
+        }
         console.error("Error loading decision modal:", err);
         modalBody.innerHTML = `
             <div style="text-align:center;padding:2rem;color:#f87171;">

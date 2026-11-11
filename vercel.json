@@ -1,7 +1,3 @@
 {
-  "version": 2,
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.py" },
-    { "source": "/scan/(.*)", "destination": "/api/index.py" }
-  ]
+  "framework": null
 }

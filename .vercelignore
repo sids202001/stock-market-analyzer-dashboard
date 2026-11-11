@@ -16,3 +16,6 @@ backups/
 venv/
 __pycache__/
 *.pyc
+requirements.txt
+*.py
+api.bak/
