@@ -559,15 +559,19 @@ def extract_quarterly_financials(
             # Minimum 8 quarters of history for trend analysis
             cols = all_sorted_dates[:max(8, len(all_sorted_dates))]
 
-            # Freshness gate: compare newest available quarter against latest filed SEC quarter
+            # Freshness gate: compare newest available quarter and latest SEC filing date against current date
             latest_period_dt = pd.to_datetime(cols[0]).date()
             filing_date_dt = pd.to_datetime(latest_sec_filing["filing_date"]).date() if (latest_sec_filing and latest_sec_filing.get("filing_date")) else latest_period_dt
             age_days = (as_of_dt - filing_date_dt).days
+            period_age_days = (as_of_dt - latest_period_dt).days
             vintage_meta["latest_period_end"] = str(latest_period_dt)
             vintage_meta["latest_filing_date"] = str(filing_date_dt)
+            vintage_meta["latest_filing_form"] = latest_sec_filing.get("form", "10-Q") if latest_sec_filing else "10-Q"
+            vintage_meta["latest_filing_period_end"] = latest_sec_filing.get("period_end") if latest_sec_filing else str(latest_period_dt)
             vintage_meta["age_days"] = age_days
+            vintage_meta["period_age_days"] = period_age_days
 
-            # Rule 2 Freshness Gate vs SEC Submissions
+            # Rule 2 Freshness Gate vs SEC Submissions & Calendar
             if latest_sec_filing and latest_sec_filing.get("period_end"):
                 sec_latest_p = latest_sec_filing["period_end"]
                 if str(latest_period_dt) < sec_latest_p:
@@ -583,8 +587,15 @@ def extract_quarterly_financials(
                 vintage_meta["is_stale"] = True
                 vintage_meta["status"] = "STALE"
                 vintage_meta["stale_warning"] = (
-                    f"Data is STALE: Latest core financial report filed {filing_date_dt} "
+                    f"Data is STALE: Latest SEC Form {vintage_meta['latest_filing_form']} filed {filing_date_dt} "
                     f"({age_days} days before as-of date {as_of_dt}, exceeding 120-day limit)."
+                )
+            elif period_age_days > 150 and not vintage_meta["is_stale"]:
+                vintage_meta["is_stale"] = True
+                vintage_meta["status"] = "STALE"
+                vintage_meta["stale_warning"] = (
+                    f"Data is STALE: Latest reported period ended {latest_period_dt} "
+                    f"({period_age_days} days before as-of date {as_of_dt}, exceeding 150-day reporting window)."
                 )
 
             for idx, period_end_str in enumerate(cols):
@@ -710,11 +721,44 @@ def extract_quarterly_financials(
                     "one_off_disclosure": one_off_info["disclosure"],
                     "eps_side_by_side": one_off_info["side_by_side"],
                     "cash": DataSanitizer.fmt_money(fin_cash) if fin_cash else "N/A",
+                    "cash_raw": fin_cash,
                     "debt": DataSanitizer.fmt_money(fin_debt) if fin_debt else "N/A",
+                    "debt_raw": fin_debt,
                     "fcf": DataSanitizer.fmt_money(fin_fcf) if fin_fcf else "N/A",
                     "fcf_raw": fin_fcf,
                     "stale": col_age_days > 120 or vintage_meta["is_stale"]
                 })
+
+            # If latest quarter has EPS reported (e.g. via Form 8-K before 10-Q XBRL lands) but missing Revenue,
+            # derive latest-quarter revenue from (a) TTM totalRevenue minus prior 3 quarters, or (b) YoY revenueGrowth * prior-year quarter.
+            if quarterly_data and quarterly_data[0].get("revenue_raw") is None and info:
+                derived_q0_rev = None
+                tot_ttm_rev = DataSanitizer.safe_float(info.get("totalRevenue"))
+                prior_3_revs = [q.get("revenue_raw") for q in quarterly_data[1:4] if q.get("revenue_raw") is not None]
+                if tot_ttm_rev and len(prior_3_revs) == 3:
+                    cand_rev = tot_ttm_rev - sum(prior_3_revs)
+                    if cand_rev > 0 and prior_3_revs[0] > 0 and (0.25 * prior_3_revs[0] <= cand_rev <= 4.0 * prior_3_revs[0]):
+                        derived_q0_rev = cand_rev
+                if derived_q0_rev is None:
+                    rev_g = DataSanitizer.safe_float(info.get("revenueGrowth"))
+                    if rev_g is not None and -0.95 < rev_g < 10.0:
+                        q0_dt_ref = pd.to_datetime(quarterly_data[0]["period_end_date"])
+                        yoy_q = None
+                        for qc in quarterly_data[1:]:
+                            qc_dt = pd.to_datetime(qc["period_end_date"])
+                            if 330 <= (q0_dt_ref - qc_dt).days <= 400 and qc.get("revenue_raw"):
+                                yoy_q = qc
+                                break
+                        if yoy_q is None and len(quarterly_data) >= 5 and quarterly_data[4].get("revenue_raw"):
+                            yoy_q = quarterly_data[4]
+                        if yoy_q and yoy_q.get("revenue_raw"):
+                            cand_rev = float(yoy_q["revenue_raw"]) * (1.0 + rev_g)
+                            if cand_rev > 0:
+                                derived_q0_rev = cand_rev
+                if derived_q0_rev and derived_q0_rev > 0:
+                    quarterly_data[0]["revenue_raw"] = round(derived_q0_rev, 2)
+                    quarterly_data[0]["revenue"] = DataSanitizer.fmt_money(derived_q0_rev)
+                    quarterly_data[0]["revenue_derived_latest"] = True
         else:
             if is_crypto(clean_t):
                 vintage_meta["is_stale"] = False
@@ -1640,12 +1684,23 @@ def compute_audited_financial_ratios(
 
     # Ratio: Forward P/E
     fwd_eps = info.get("forwardEps")
+    fwd_pe_direct = DataSanitizer.safe_float(info.get("forwardPE"))
     if fwd_eps and fwd_eps > 0 and price > 0:
         val = round(price / fwd_eps, 1)
         ratios["forward_pe"] = {
             "value": f"{val:.1f}x",
             "numeric": val,
             "formula": f"Forward P/E = Spot Price ${price:,.2f} ÷ Consensus Forward EPS ${fwd_eps:.2f} = {val:.1f}x (Source: Wall Street Consensus as of {as_of_dt})",
+            "period": "NTM",
+            "source": f"Wall Street Consensus as of {as_of_dt}"
+        }
+    elif fwd_pe_direct and fwd_pe_direct > 0 and price > 0:
+        val = round(fwd_pe_direct, 1)
+        implied_fwd_eps = round(price / fwd_pe_direct, 2)
+        ratios["forward_pe"] = {
+            "value": f"{val:.1f}x",
+            "numeric": val,
+            "formula": f"Forward P/E = Spot Price ${price:,.2f} ÷ Consensus Forward EPS ${implied_fwd_eps:.2f} = {val:.1f}x (Source: Wall Street Consensus as of {as_of_dt})",
             "period": "NTM",
             "source": f"Wall Street Consensus as of {as_of_dt}"
         }
@@ -1947,6 +2002,141 @@ def get_next_earnings_date_str(stock: Any, info: Optional[dict] = None) -> str:
     return "To be announced (Company release pending)"
 
 
+_FALLBACK_METRICS_CACHE: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+_SPY_RET_CACHE: Dict[str, Any] = {"ts": 0.0, "returns": None}
+
+
+def _compute_2y_beta_vs_spy(hist: pd.DataFrame) -> Optional[float]:
+    """Computes deterministic 2-year daily beta vs SPY using chart v8 history (identical locally & on Render)."""
+    try:
+        if hist is None or hist.empty or len(hist) < 60:
+            return None
+        now = time.time()
+        spy_ret = _SPY_RET_CACHE.get("returns")
+        if spy_ret is None or (now - _SPY_RET_CACHE.get("ts", 0.0)) > 21600:
+            spy_hist = yf.Ticker("SPY").history(period="2y")
+            if spy_hist is not None and not spy_hist.empty and len(spy_hist) >= 60:
+                sr = spy_hist["Close"].pct_change().dropna()
+                sr.index = pd.to_datetime(sr.index).tz_localize(None).normalize()
+                spy_ret = sr
+                _SPY_RET_CACHE["returns"] = spy_ret
+                _SPY_RET_CACHE["ts"] = now
+        if spy_ret is None or spy_ret.empty:
+            return None
+        stk_ret = hist["Close"].pct_change().dropna()
+        stk_ret.index = pd.to_datetime(stk_ret.index).tz_localize(None).normalize()
+        aligned = pd.concat([stk_ret.rename("stk"), spy_ret.rename("spy")], axis=1).dropna()
+        if len(aligned) < 60:
+            return None
+        var_spy = float(aligned["spy"].var())
+        if var_spy <= 1e-12:
+            return None
+        cov = float(aligned["stk"].cov(aligned["spy"]))
+        b_val = round(cov / var_spy, 3)
+        if 0.1 <= b_val <= 4.0:
+            return b_val
+    except Exception as e:
+        logger.debug(f"2y beta vs SPY calculation failed: {e}")
+    return None
+
+
+def _fetch_fallback_market_metrics(ticker: str) -> Dict[str, Any]:
+    """
+    Crumb-free fallback for analyst price targets, analyst count, Forward P/E, Beta,
+    and quarterly YoY revenue growth when Yahoo Finance .info is rate-limited (e.g. on Render).
+    """
+    t = ticker.upper().strip()
+    if is_crypto(t):
+        return {}
+    now = time.time()
+    cached = _FALLBACK_METRICS_CACHE.get(t)
+    if cached and (now - cached[0]) < 3600:
+        return dict(cached[1])
+
+    import urllib.request
+    try:
+        import certifi
+        ctx = ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        ctx = ssl.create_default_context()
+
+    hdr = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    out: Dict[str, Any] = {}
+
+    # 1. StockAnalysis forecast page: consensus mean/low/high targets & analyst count
+    try:
+        req = urllib.request.Request(f"https://stockanalysis.com/stocks/{t.lower()}/forecast/", headers=hdr)
+        with urllib.request.urlopen(req, context=ctx, timeout=6) as r:
+            page = r.read().decode("utf-8", errors="ignore")
+        m_sent = re.search(r"According to\s+(\d+)\s+analysts.*?average.*?target.*?\$([0-9,]+(?:\.\d+)?)", page, re.I | re.S)
+        if m_sent:
+            out["numberOfAnalystOpinions"] = int(m_sent.group(1))
+            out["targetMeanPrice"] = float(m_sent.group(2).replace(",", ""))
+        else:
+            m_avg = re.search(r"average price target[^$]{0,40}\$([0-9,]+(?:\.\d+)?)", page, re.I)
+            if m_avg:
+                out["targetMeanPrice"] = float(m_avg.group(1).replace(",", ""))
+        m_low = re.search(r"low(?:est)?[^$]{0,30}\$([0-9,]+(?:\.\d+)?)", page, re.I)
+        if m_low:
+            out["targetLowPrice"] = float(m_low.group(1).replace(",", ""))
+        m_high = re.search(r"high(?:est)?[^$]{0,30}\$([0-9,]+(?:\.\d+)?)", page, re.I)
+        if m_high:
+            out["targetHighPrice"] = float(m_high.group(1).replace(",", ""))
+    except Exception as e:
+        logger.debug(f"StockAnalysis fallback failed for {t}: {e}")
+
+    # 2. Finviz quote page: Forward P/E, Target Price, Beta, Sales Q/Q
+    try:
+        req = urllib.request.Request(f"https://finviz.com/quote.ashx?t={t}", headers=hdr)
+        with urllib.request.urlopen(req, context=ctx, timeout=6) as r:
+            page = r.read().decode("utf-8", errors="ignore")
+
+        def _fv_field(label: str) -> Optional[str]:
+            m = re.search(rf">{re.escape(label)}<.*?<td[^>]*>(.*?)</td>", page, re.S)
+            if not m:
+                return None
+            val = re.sub(r"<[^>]+>", "", m.group(1)).strip()
+            return None if (not val or val == "-") else val
+
+        fpe = _fv_field("Forward P/E")
+        if fpe:
+            try:
+                fpe_v = float(fpe.replace(",", ""))
+                if fpe_v > 0:
+                    out["forwardPE"] = fpe_v
+            except Exception:
+                pass
+        tp = _fv_field("Target Price")
+        if tp and "targetMeanPrice" not in out:
+            try:
+                tp_v = float(tp.replace(",", ""))
+                if tp_v > 0:
+                    out["targetMeanPrice"] = tp_v
+            except Exception:
+                pass
+        b_str = _fv_field("Beta")
+        if b_str:
+            try:
+                b_v = float(b_str.replace(",", ""))
+                if b_v > 0:
+                    out["beta"] = b_v
+            except Exception:
+                pass
+        sqq = _fv_field("Sales Q/Q")
+        if sqq and sqq.endswith("%"):
+            try:
+                out["revenueGrowth"] = round(float(sqq[:-1].replace(",", "")) / 100.0, 4)
+            except Exception:
+                pass
+    except Exception as e:
+        logger.debug(f"Finviz fallback failed for {t}: {e}")
+
+    _FALLBACK_METRICS_CACHE[t] = (now, out)
+    return dict(out)
+
+
 def perform_audited_scan(ticker: str, as_of_date: Optional[Any] = None) -> Dict[str, Any]:
     """
     SINGLE AUTHORITATIVE SCAN COMPUTATION PIPELINE.
@@ -2065,6 +2255,23 @@ def perform_audited_scan(ticker: str, as_of_date: Optional[Any] = None) -> Dict[
         fallback_info.setdefault("longName", fallback_info["shortName"])
         info = fallback_info
 
+    # Hydrate any missing analyst targets / Forward P/E / Beta / Sales Q/Q from crumb-free fallback (Render parity)
+    if not is_crypto(raw_ticker) and any(
+        info.get(k) is None for k in ("targetMeanPrice", "forwardPE", "beta", "revenueGrowth")
+    ):
+        fb_m = _fetch_fallback_market_metrics(raw_ticker)
+        for k, v in fb_m.items():
+            if info.get(k) is None and v is not None:
+                info[k] = v
+        if info.get("forwardEps") is None and info.get("forwardPE") and hist is not None and not hist.empty:
+            try:
+                _p_now = float(hist["Close"].iloc[-1])
+                _fpe_now = float(info["forwardPE"])
+                if _p_now > 0 and _fpe_now > 0:
+                    info["forwardEps"] = round(_p_now / _fpe_now, 2)
+            except Exception:
+                pass
+
     if hist is None or hist.empty or len(hist) < 5:
         return {
             "success": False,
@@ -2126,6 +2333,47 @@ def perform_audited_scan(ticker: str, as_of_date: Optional[Any] = None) -> Dict[
     quarterly_financials, vintage_meta = extract_quarterly_financials(stock, info=info, as_of_date=as_of_dt)
     annual_financials = extract_annual_financials(stock, as_of_date=as_of_dt)
 
+    # Reconcile Balance Sheet (Cash + Short-Term Investments, Total Debt incl. current portion)
+    # Use authoritative SEC 10-Q/10-K balance sheet consistently across both local and Render paths
+    sec_bs_cash = None
+    sec_bs_debt = None
+    for q_row in quarterly_financials:
+        if sec_bs_cash is None and q_row.get("cash_raw") is not None:
+            sec_bs_cash = float(q_row["cash_raw"])
+        if sec_bs_debt is None and q_row.get("debt_raw") is not None:
+            sec_bs_debt = float(q_row["debt_raw"])
+        if sec_bs_cash is not None and sec_bs_debt is not None:
+            break
+    if sec_bs_cash is not None:
+        c["totalCash"] = sec_bs_cash
+    if sec_bs_debt is not None:
+        c["totalDebt"] = sec_bs_debt
+
+    # Deterministic DCF growth rate: derive YoY revenue growth from latest quarterly financials first
+    # so local and Render paths receive identical fundamental growth inputs
+    dcf_base_growth = None
+    if quarterly_financials and quarterly_financials[0].get("revenue_raw"):
+        q0_r = float(quarterly_financials[0]["revenue_raw"])
+        q0_dt_g = pd.to_datetime(quarterly_financials[0]["period_end_date"])
+        q4_r = None
+        for qc in quarterly_financials[1:]:
+            if qc.get("revenue_raw") and qc.get("period_end_date"):
+                qc_dt_g = pd.to_datetime(qc["period_end_date"])
+                if 330 <= (q0_dt_g - qc_dt_g).days <= 400:
+                    q4_r = float(qc["revenue_raw"])
+                    break
+        if q4_r is None and len(quarterly_financials) >= 5 and quarterly_financials[4].get("revenue_raw"):
+            q4_r = float(quarterly_financials[4]["revenue_raw"])
+        if q4_r and q4_r > 0:
+            dcf_base_growth = round((q0_r - q4_r) / q4_r, 4)
+    if dcf_base_growth is None:
+        dcf_base_growth = c.get("revenueGrowth") or 0.08
+
+    # Deterministic 2y beta vs SPY from chart history (identical on local & Render); fallback to sanitized beta
+    dcf_beta = _compute_2y_beta_vs_spy(hist) if not is_crypto(raw_ticker) else None
+    if dcf_beta is None:
+        dcf_beta = c.get("beta") or 1.0
+
     # Audited FCF & DCF
     fcf_info = get_audited_ttm_fcf(raw_ticker, stock)
     is_fcf_valid = fcf_info.get("is_valid", False)
@@ -2135,10 +2383,10 @@ def perform_audited_scan(ticker: str, as_of_date: Optional[Any] = None) -> Dict[
         dcf_scenarios = compute_fundamental_dcf_scenarios(
             owner_fcf=fcf_info["owner_fcf"],
             shares=shares_for_dcf,
-            beta=c.get("beta") or 1.0,
+            beta=dcf_beta,
             cash=c.get("totalCash") or 0.0,
             debt=c.get("totalDebt") or 0.0,
-            base_growth=c.get("revenueGrowth") or 0.08,
+            base_growth=dcf_base_growth,
             price=price,
             ticker=raw_ticker
         )
@@ -2811,10 +3059,112 @@ def perform_cross_validation(ticker: str, scan_data: dict, info: dict) -> Dict[s
     res = {
         "has_conflict": has_conflict,
         "conflicts": conflicts_list,
+        "internal_contradictions": [],
         "checks": checks
     }
     res.update(checks)
     return res
+
+
+def audit_internal_consistency(
+    funds_list: List[dict],
+    table_quarters: List[dict],
+    delta_line: str,
+    fcf_info: dict,
+    analyst_target_str: str,
+    analyst_source_str: str
+) -> List[Dict[str, Any]]:
+    """
+    Detects same-response contradictions across sections of a single /api/decision payload:
+      1. Diluted EPS YoY prior-quarter figure vs earnings table for the same quarter.
+      2. Latest-quarter Revenue & EPS in fundamentals vs latest6Earnings[0].
+      3. TTM FCF in fundamentals vs dcf_fcf_derivation.
+      4. Cash reserves mentioned in delta_line vs Cash in fundamentals.
+      5. Analyst count claimed in source string while target is N/A.
+    """
+    contradictions: List[Dict[str, Any]] = []
+    funds_by_metric = {f.get("metric"): f for f in (funds_list or []) if isinstance(f, dict)}
+
+    # 1. Check latest-quarter EPS and YoY prior-quarter EPS vs earnings table
+    eps_fund = funds_by_metric.get("Diluted EPS", {})
+    eps_val_str = str(eps_fund.get("value", ""))
+    if table_quarters:
+        q0_tbl_eps = str(table_quarters[0].get("eps", ""))
+        m_curr = re.match(r"^\s*\$([0-9]+(?:\.[0-9]+)?)", eps_val_str)
+        m_q0 = re.match(r"^\s*\$([0-9]+(?:\.[0-9]+)?)", q0_tbl_eps)
+        if m_curr and m_q0 and abs(float(m_curr.group(1)) - float(m_q0.group(1))) > 0.02:
+            contradictions.append({
+                "check": "current_eps_mismatch",
+                "detail": f"Fundamentals Diluted EPS (${m_curr.group(1)}) contradicts latest6Earnings[0] (${m_q0.group(1)})"
+            })
+
+        # Prior-quarter YoY EPS check: "... vs $X.XX in Q1 '26"
+        m_prior = re.search(r"vs\s+\$([0-9]+(?:\.[0-9]+)?)\s+in\s+(Q[1-4]\s+'?\d{2,4})", eps_val_str, re.I)
+        if m_prior:
+            cited_prior_eps = float(m_prior.group(1))
+            cited_q_norm = m_prior.group(2).replace("'", "FY20").replace("  ", " ").upper().strip()
+            for tq in table_quarters:
+                tq_lbl = str(tq.get("quarter", "")).upper().strip()
+                if tq_lbl == cited_q_norm:
+                    m_tq_eps = re.match(r"^\s*\$([0-9]+(?:\.[0-9]+)?)", str(tq.get("eps", "")))
+                    if m_tq_eps:
+                        tbl_prior_eps = float(m_tq_eps.group(1))
+                        if abs(cited_prior_eps - tbl_prior_eps) > 0.02:
+                            contradictions.append({
+                                "check": "yoy_eps_mismatch",
+                                "detail": f"{tq_lbl} EPS is ${tbl_prior_eps:.2f} in latest6Earnings table but ${cited_prior_eps:.2f} in fundamentals YoY line"
+                            })
+                    break
+
+        # 2. Latest-quarter Revenue vs earnings table
+        rev_fund = funds_by_metric.get("Quarterly Revenue", {})
+        rev_val_str = str(rev_fund.get("value", ""))
+        q0_tbl_rev = str(table_quarters[0].get("revenue", ""))
+        if q0_tbl_rev != "N/A" and rev_val_str.startswith("N/A"):
+            contradictions.append({
+                "check": "current_revenue_mismatch",
+                "detail": f"Fundamentals Quarterly Revenue is N/A while latest6Earnings[0] reports {q0_tbl_rev}"
+            })
+        elif q0_tbl_rev == "N/A" and not rev_val_str.startswith("N/A"):
+            contradictions.append({
+                "check": "current_revenue_mismatch",
+                "detail": f"Fundamentals Quarterly Revenue reports {rev_val_str} while latest6Earnings[0] is N/A"
+            })
+
+    # 3. TTM FCF in fundamentals vs dcf_fcf_derivation
+    fcf_fund = funds_by_metric.get("Free Cash Flow (TTM)", {})
+    m_fcf_f = re.search(r"\$([0-9]+(?:\.[0-9]+)?)\s*Billion", str(fcf_fund.get("value", "")), re.I)
+    owner_fcf = fcf_info.get("owner_fcf") if isinstance(fcf_info, dict) else None
+    if m_fcf_f and owner_fcf:
+        f_b = float(m_fcf_f.group(1))
+        d_b = float(owner_fcf) / 1e9
+        if abs(f_b - d_b) / max(abs(d_b), 0.01) > 0.02:
+            contradictions.append({
+                "check": "ttm_fcf_mismatch",
+                "detail": f"Fundamentals TTM FCF (${f_b:.2f}B) contradicts DCF derivation (${d_b:.2f}B)"
+            })
+
+    # 4. Delta line cash vs Fundamentals cash
+    bs_fund = funds_by_metric.get("Cash & Balance Sheet Health", {})
+    m_bs_cash = re.search(r"Cash:\s*\$([0-9]+(?:\.[0-9]+)?)B", str(bs_fund.get("value", "")), re.I)
+    m_dl_cash = re.search(r"cash[^$]{0,30}\$([0-9]+(?:\.[0-9]+)?)B", str(delta_line or ""), re.I)
+    if m_bs_cash and m_dl_cash:
+        bs_c = float(m_bs_cash.group(1))
+        dl_c = float(m_dl_cash.group(1))
+        if abs(bs_c - dl_c) / max(bs_c, 0.01) > 0.05:
+            contradictions.append({
+                "check": "delta_cash_mismatch",
+                "detail": f"Delta line cites cash ${dl_c:.2f}B while fundamentals balance sheet reports ${bs_c:.2f}B"
+            })
+
+    # 5. Analyst count claimed when targets are N/A
+    if str(analyst_target_str).strip().upper() == "N/A" and re.search(r"\(\d+\s+analysts?\)", str(analyst_source_str or ""), re.I):
+        contradictions.append({
+            "check": "analyst_count_without_target",
+            "detail": f"Analyst source claims analyst count ({analyst_source_str}) while consensus target is N/A"
+        })
+
+    return contradictions
 
 
 def compute_integrity_audit(
@@ -2879,6 +3229,9 @@ def compute_integrity_audit(
         }
 
     # Check 1: Freshness (Rule 2)
+    vm = scan_data.get("data_vintage") or scan_data.get("vintage_meta") or {}
+    f_dt = vm.get("latest_filing_date")
+    f_age = vm.get("age_days")
     if is_stale:
         checks["freshness"] = {
             "passed": False,
@@ -2886,10 +3239,11 @@ def compute_integrity_audit(
             "detail": f"STALE DATA WARNING: {stale_warning or 'Filing is older than 120-day limit.'}"
         }
     else:
+        age_note = f" (latest filing {f_dt}, {f_age} days old)" if (f_dt and f_age is not None) else ""
         checks["freshness"] = {
             "passed": True,
             "name": "Freshness",
-            "detail": "Latest 10-Q/10-K filing age <= 120 days; TTM rolls from active reporting period."
+            "detail": f"Latest 10-Q/10-K filing age <= 120 days{age_note}; TTM rolls from active reporting period."
         }
 
     # Check 2: Label Consistency (Rule 5)
@@ -2918,13 +3272,22 @@ def compute_integrity_audit(
             "detail": "Fiscal year-end calendar aligned, like-for-like GAAP/non-GAAP, strict RSI thresholds (30/70), future earnings date."
         }
 
-    # Check 3: Cross-Validation (Rule 4)
-    # Check that 2 independent sources were evaluated and any disagreement is displayed
-    checks["cross_validation"] = {
-        "passed": True,
-        "name": "Cross-Validation",
-        "detail": "7 key figures cross-checked across SEC EDGAR and market providers (Price, Revenue, EPS, FCF, Cash, Debt, Shares); conflicts displayed."
-    }
+    # Check 3: Cross-Validation & Same-Response Internal Consistency (Rule 4)
+    # Any same-response contradiction MUST fail this check so the badge never reports PASS 5/5.
+    internal_contradictions = (cross_val or {}).get("internal_contradictions") or []
+    if internal_contradictions:
+        details_str = "; ".join(ic.get("detail", str(ic)) for ic in internal_contradictions)
+        checks["cross_validation"] = {
+            "passed": False,
+            "name": "Cross-Validation",
+            "detail": f"Same-response contradiction detected: {details_str}"
+        }
+    else:
+        checks["cross_validation"] = {
+            "passed": True,
+            "name": "Cross-Validation",
+            "detail": "7 key figures cross-checked across SEC EDGAR and market providers (Price, Revenue, EPS, FCF, Cash, Debt, Shares); zero same-response contradictions."
+        }
 
     # Check 4: Derivation Audit (Rule 6)
     # Entry zone derived from independent levels, formula published, calibration claim literally true
@@ -2955,12 +3318,13 @@ def compute_integrity_audit(
         }
 
     failed = [k for k, v in checks.items() if not v["passed"]]
+    passed_cnt = len(checks) - len(failed)
     all_passed = (len(failed) == 0)
     badge_status = "PASS" if all_passed else "FLAGGED"
 
     return {
         "status": badge_status,
-        "badge_text": "PASS (5/5 Checks Verified)" if all_passed else f"FLAGGED (Failed: {', '.join(failed)})",
+        "badge_text": f"PASS ({passed_cnt}/{len(checks)} Checks Verified)" if all_passed else f"FLAGGED ({passed_cnt}/{len(checks)} Checks Passed — Failed: {', '.join(failed)})",
         "failed_checks": failed,
         "checks": checks,
         "all_passed": all_passed
@@ -3112,7 +3476,7 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
     target_mean = c.get("targetMeanPrice")
     target_low = c.get("targetLowPrice")
     target_high = c.get("targetHighPrice")
-    target_count = c.get("numberOfAnalystOpinions") or 35
+    target_count = c.get("numberOfAnalystOpinions")
     if target_mean and p > 0:
         target_upside = round(((target_mean - p) / p) * 100.0, 1)
         cons_target_str = f"${target_mean:,.2f} ({target_upside:+0.1f}%)"
@@ -3121,6 +3485,23 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
         target_upside = None
         cons_target_str = "N/A"
         tgt_mean_str = "N/A"
+        target_count = None
+
+    if is_crypto(ticker):
+        analyst_consensus_source = "[Market Benchmark] Cryptocurrency has no equity analyst consensus"
+    elif target_mean is None:
+        analyst_consensus_source = "[Analyst Estimate] Wall Street Consensus unavailable"
+    elif target_count:
+        analyst_consensus_source = f"[Analyst Estimate] Wall Street Consensus ({target_count} analysts) retrieved {as_of_dt}"
+    else:
+        analyst_consensus_source = f"[Analyst Estimate] Wall Street Consensus retrieved {as_of_dt}"
+
+    if is_crypto(ticker):
+        forward_pe_source = "[Market Benchmark] N/A (Cryptocurrency has no earnings consensus)"
+    elif fwd_pe_num is None:
+        forward_pe_source = "[Analyst Estimate] Forward P/E consensus unavailable"
+    else:
+        forward_pe_source = f"[Analyst Estimate] Wall Street Consensus as of {as_of_dt}"
 
     if target_low and p > 0:
         low_upside = round(((target_low - p) / p) * 100.0, 1)
@@ -3331,7 +3712,27 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
 
     if t_eps_vals:
         curr_e = round(float(t_eps_vals[0]), 2)
-        raw_prior = t_eps_vals[4] if len(t_eps_vals) >= 5 else (float(q4.get("eps_gaap")) if q4.get("eps_gaap") is not None else None)
+        # Match year-ago quarter EPS from table_quarters on the exact same basis (prevents GAAP vs non-GAAP contradiction)
+        raw_prior = None
+        q4_period_target = q4.get("period_end_date")
+        for tq in table_quarters[1:]:
+            if q4_period_target and tq.get("period_end_date") == q4_period_target:
+                v_s = str(tq.get("eps", "")).replace("$", "").strip()
+                if v_s and v_s != "N/A":
+                    try:
+                        raw_prior = float(v_s)
+                    except Exception:
+                        pass
+                break
+        if raw_prior is None and len(table_quarters) >= 5:
+            v_s = str(table_quarters[4].get("eps", "")).replace("$", "").strip()
+            if v_s and v_s != "N/A":
+                try:
+                    raw_prior = float(v_s)
+                except Exception:
+                    pass
+        if raw_prior is None and q4.get("eps_gaap") is not None:
+            raw_prior = float(q4.get("eps_gaap"))
         prior_e = round(float(raw_prior), 2) if raw_prior is not None else None
         if prior_e is not None and abs(prior_e) > 0:
             eps_yoy_calc = round(((curr_e - prior_e) / abs(prior_e)) * 100.0, 1)
@@ -3520,10 +3921,62 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
     risks_list = t_content.get("risks", [])
     growth_list = t_content.get("growth_opportunities", [])
     options_move = t_content.get("options_implied_move", "N/A")
-    delta_line = t_content.get("delta_line", "Filing fundamentals verified; rolling TTM FCF and ratios updated.")
 
-    # Cross-validation across two independent sources (Rule 4)
+    # Dynamic, freshness-checked "What changed since last run" line derived from latest SEC filing & current response
+    if is_crypto(ticker):
+        delta_line = t_content.get("delta_line", "What changed since last run: Live crypto quote and rolling technical trendlines updated.")
+    else:
+        vm = scan_data.get("data_vintage") or scan_data.get("vintage_meta") or {}
+        filing_form = vm.get("latest_filing_form") or "10-Q"
+        filing_dt = vm.get("latest_filing_date")
+        filing_age = vm.get("age_days")
+        latest_q_lbl = q0.get("quarter", "Latest Quarter")
+        latest_q_end = q0.get("period_end_date", "")
+
+        if is_stale or (filing_age is not None and filing_age > 120):
+            delta_line = (
+                f"Stale filing alert: Latest SEC Form {filing_form} "
+                f"(period ended {vm.get('latest_filing_period_end') or latest_q_end}, filed {filing_dt or 'unknown'}"
+                f"{f', {filing_age} days old' if filing_age is not None else ''}) "
+                f"exceeds the 120-day freshness threshold; no recent filing changes to report."
+            )
+        else:
+            parts = []
+            if rev_val_str and rev_val_str != "N/A":
+                parts.append(f"quarterly revenue reached {rev_val_str}")
+            if eps_val_str and eps_val_str != "N/A":
+                parts.append(f"diluted EPS came in at {eps_val_str}")
+            if fcf_info and fcf_info.get("owner_fcf"):
+                parts.append(f"TTM FCF stands at {DataSanitizer.fmt_money(fcf_info['owner_fcf'])}")
+            if tot_cash:
+                parts.append(f"cash & short-term investments stand at {DataSanitizer.fmt_money(tot_cash)}")
+            filing_ref = f"Form {filing_form} (filed {filing_dt})" if filing_dt else f"Form {filing_form}"
+            period_ref = f"{latest_q_lbl} ended {latest_q_end}" if latest_q_end else latest_q_lbl
+            if parts:
+                delta_line = f"What changed since last run: Latest {filing_ref} / {period_ref} — " + "; ".join(parts) + "."
+            else:
+                delta_line = f"What changed since last run: Latest {filing_ref} ({period_ref}) audited; fundamentals and TTM ratios updated."
+
+    # Cross-validation across two independent sources + same-response internal consistency (Rule 4)
     cross_val = perform_cross_validation(ticker, scan_data, info)
+    if not is_crypto(ticker):
+        internal_contradictions = audit_internal_consistency(
+            funds_list=funds_list,
+            table_quarters=table_quarters,
+            delta_line=delta_line,
+            fcf_info=fcf_info,
+            analyst_target_str=cons_target_str,
+            analyst_source_str=analyst_consensus_source
+        )
+        cross_val["internal_contradictions"] = internal_contradictions
+        if internal_contradictions:
+            cross_val["has_conflict"] = True
+            for ic in internal_contradictions:
+                cross_val["conflicts"].append({
+                    "metric": ic["check"],
+                    "has_conflict": True,
+                    "display": ic["detail"]
+                })
 
     # Integrity Audit (Rule 3: named checks, not a label)
     integ_audit = compute_integrity_audit(
@@ -3582,7 +4035,7 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
         "keyMetrics": {
             "forwardPE": "N/A (Crypto)" if is_crypto(ticker) else fwd_pe_str,
             "forwardPEFiscalPeriod": "N/A" if is_crypto(ticker) else f"NTM / {fy_label}",
-            "forwardPESource": "[Market Benchmark] N/A (Cryptocurrency has no earnings consensus)" if is_crypto(ticker) else f"[Analyst Estimate] Wall Street Consensus as of {as_of_dt}",
+            "forwardPESource": forward_pe_source,
             "forwardPENumeric": None if is_crypto(ticker) else fwd_pe_num,
             "sectorAvgPENumeric": sector_pe,
             "forwardPEContext": "N/A (Cryptocurrency)" if is_crypto(ticker) else sec_ctx,
@@ -3607,10 +4060,10 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
         "valuation": {
             "conclusion": "N/A" if is_crypto(ticker) else val_badge,
             "forwardPE": "N/A (Crypto)" if is_crypto(ticker) else fwd_pe_str,
-            "forwardPESource": "[Market Benchmark] N/A (Cryptocurrency has no earnings consensus)" if is_crypto(ticker) else f"[Analyst Estimate] Wall Street Consensus as of {as_of_dt}",
+            "forwardPESource": forward_pe_source,
             "analystConsensusPrice": None if is_crypto(ticker) else target_mean,
             "analystConsensusTarget": "N/A" if is_crypto(ticker) else cons_target_str,
-            "analystConsensusSource": "[Market Benchmark] Cryptocurrency has no equity analyst consensus" if is_crypto(ticker) else f"[Analyst Estimate] Wall Street Consensus ({target_count} analysts) retrieved {as_of_dt}",
+            "analystConsensusSource": analyst_consensus_source,
             "dcf_divergence_note": "N/A (DCF suppressed per Addendum C for crypto assets)" if is_crypto(ticker) else scan_data.get("dcf_divergence_note", "N/A"),
             "dcf_fcf_derivation": {"derivation_display": "N/A (Cash flow not applicable to cryptocurrency)"} if is_crypto(ticker) else fcf_info,
             "dcf": {

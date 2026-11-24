@@ -105,15 +105,34 @@ def get_audited_ttm_fcf(
                     v_ocf = [x for x in ocf_list if x.get("form") in ["10-Q", "10-K"] and x.get("start") and x.get("end")]
                     v_cpx = [x for x in capex_list if x.get("form") in ["10-Q", "10-K"] and x.get("start") and x.get("end")]
                     if v_ocf and v_cpx:
-                        latest_ocf = sorted(v_ocf, key=lambda x: (x.get("end", ""), x.get("filed", "")))[-1]
-                        latest_end = latest_ocf.get("end")
+                        def _dur_days(it: dict) -> int:
+                            try:
+                                return (datetime.strptime(it["end"], "%Y-%m-%d") - datetime.strptime(it["start"], "%Y-%m-%d")).days
+                            except Exception:
+                                return 0
 
-                        # Case A: Latest filing is 10-K FY (full year)
-                        if latest_ocf.get("form") == "10-K" and latest_ocf.get("fp") == "FY":
-                            c_items = sorted([x for x in v_cpx if x.get("end") == latest_end and x.get("form") == "10-K"], key=lambda x: x.get("filed", ""))
-                            if c_items:
+                        def _match_period(items_list, target_start: str, target_end: str, target_dur: int):
+                            # Prefer exact (start, end) match; fallback to same end with matching duration (+/- 10d)
+                            exact = [x for x in items_list if x.get("end") == target_end and x.get("start") == target_start]
+                            if exact:
+                                return sorted(exact, key=lambda x: x.get("filed", ""))[-1]
+                            dur_m = [x for x in items_list if x.get("end") == target_end and abs(_dur_days(x) - target_dur) <= 10]
+                            if dur_m:
+                                return sorted(dur_m, key=lambda x: x.get("filed", ""))[-1]
+                            return None
+
+                        latest_end = max(x.get("end", "") for x in v_ocf)
+                        # For the latest end date, pick the cumulative YTD (or full FY) item (longest duration)
+                        latest_ocf_cands = [x for x in v_ocf if x.get("end") == latest_end]
+                        latest_ocf = sorted(latest_ocf_cands, key=lambda x: (_dur_days(x), x.get("filed", "")))[-1]
+                        latest_dur = _dur_days(latest_ocf)
+
+                        # Case A: Latest filing is 10-K FY (full year: 330-385 days)
+                        if latest_ocf.get("form") == "10-K" and (latest_ocf.get("fp") == "FY" or 330 <= latest_dur <= 385):
+                            c_item = _match_period(v_cpx, latest_ocf.get("start", ""), latest_end, latest_dur)
+                            if c_item:
                                 o_val = float(latest_ocf["val"])
-                                c_val = abs(float(c_items[-1]["val"]))
+                                c_val = abs(float(c_item["val"]))
                                 if o_val > 0:
                                     if o_val > c_val:
                                         fcf_val = o_val - c_val
@@ -142,24 +161,42 @@ def get_audited_ttm_fcf(
                                             "error": "TTM Capex exceeds Operating Cash Flow (Negative Free Cash Flow)"
                                         }
 
-                        # Case B: Latest filing is 10-Q (cumulative Q1, Q2, Q3) with prior FY stub
+                        # Case B: Latest filing is 10-Q (cumulative YTD Q1/Q2/Q3) + prior full FY - prior same-duration YTD
                         latest_fp = latest_ocf.get("fp")
                         latest_val = float(latest_ocf["val"])
-                        prior_fys = [x for x in v_ocf if x.get("form") == "10-K" and x.get("fp") == "FY" and x.get("end", "") < latest_end]
+                        prior_fys = [
+                            x for x in v_ocf
+                            if x.get("form") == "10-K" and 330 <= _dur_days(x) <= 385 and x.get("end", "") < latest_end
+                        ]
                         if prior_fys:
-                            prior_fy = sorted(prior_fys, key=lambda x: x.get("end", ""))[-1]
+                            prior_fy = sorted(prior_fys, key=lambda x: (x.get("end", ""), x.get("filed", "")))[-1]
                             prior_fy_val = float(prior_fy["val"])
-                            prior_cums = [x for x in v_ocf if x.get("fp") == latest_fp and x.get("end", "") < latest_end and x.get("end", "") >= prior_fy.get("start", "")]
+                            prior_fy_dur = _dur_days(prior_fy)
+                            prior_cums = [
+                                x for x in v_ocf
+                                if x.get("end", "") < latest_end
+                                and x.get("start", "") == prior_fy.get("start", "")
+                                and abs(_dur_days(x) - latest_dur) <= 15
+                            ]
+                            if not prior_cums:
+                                prior_cums = [
+                                    x for x in v_ocf
+                                    if x.get("fp") == latest_fp
+                                    and x.get("end", "") < latest_end
+                                    and x.get("end", "") >= prior_fy.get("start", "")
+                                    and abs(_dur_days(x) - latest_dur) <= 15
+                                ]
                             if prior_cums:
-                                prior_cum = sorted(prior_cums, key=lambda x: x.get("end", ""))[-1]
+                                prior_cum = sorted(prior_cums, key=lambda x: (x.get("end", ""), x.get("filed", "")))[-1]
                                 prior_cum_val = float(prior_cum["val"])
+                                prior_cum_dur = _dur_days(prior_cum)
                                 ttm_o = latest_val + (prior_fy_val - prior_cum_val)
 
-                                latest_c = sorted([x for x in v_cpx if x.get("end") == latest_end], key=lambda x: x.get("filed", ""))
-                                prior_fy_c = sorted([x for x in v_cpx if x.get("end") == prior_fy["end"]], key=lambda x: x.get("filed", ""))
-                                prior_cum_c = sorted([x for x in v_cpx if x.get("end") == prior_cum["end"]], key=lambda x: x.get("filed", ""))
+                                latest_c = _match_period(v_cpx, latest_ocf.get("start", ""), latest_end, latest_dur)
+                                prior_fy_c = _match_period(v_cpx, prior_fy.get("start", ""), prior_fy["end"], prior_fy_dur)
+                                prior_cum_c = _match_period(v_cpx, prior_cum.get("start", ""), prior_cum["end"], prior_cum_dur)
                                 if latest_c and prior_fy_c and prior_cum_c:
-                                    ttm_c = abs(float(latest_c[-1]["val"])) + (abs(float(prior_fy_c[-1]["val"])) - abs(float(prior_cum_c[-1]["val"])))
+                                    ttm_c = abs(float(latest_c["val"])) + (abs(float(prior_fy_c["val"])) - abs(float(prior_cum_c["val"])))
                                     if ttm_o > 0:
                                         if ttm_o > ttm_c:
                                             fcf_val = ttm_o - ttm_c

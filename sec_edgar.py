@@ -254,16 +254,23 @@ def extract_sec_quarterly_fundamentals(ticker: str) -> Dict[str, Any]:
     eps_concepts = ["EarningsPerShareDiluted"]
     ocf_concepts = ["NetCashProvidedByUsedInOperatingActivities", "OperatingCashFlow"]
     capex_concepts = ["PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsToAcquireProductiveAssets"]
+    cash_combined_concepts = [
+        "CashCashEquivalentsAndShortTermInvestments"
+    ]
     cash_concepts = [
         "CashAndCashEquivalentsAtCarryingValue",
         "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"
     ]
-    debt_concepts = [
-        "LongTermDebtNoncurrent",
-        "LongTermDebt",
-        "DebtCurrent",
-        "ShortTermBorrowings"
+    st_inv_concepts = [
+        "ShortTermInvestments",
+        "MarketableSecuritiesCurrent",
+        "AvailableForSaleSecuritiesDebtSecuritiesCurrent",
+        "DebtSecuritiesCurrent"
     ]
+    debt_combined_concepts = ["LongTermDebt"]
+    debt_noncurrent_concepts = ["LongTermDebtNoncurrent"]
+    debt_current_concepts = ["LongTermDebtCurrent", "DebtCurrent"]
+    debt_st_concepts = ["ShortTermBorrowings", "CommercialPaper"]
     # Material non-operating items
     non_op_concepts = [
         "EquitySecuritiesFvNiGainLoss",
@@ -276,8 +283,13 @@ def extract_sec_quarterly_fundamentals(ticker: str) -> Dict[str, Any]:
     eps_items = _find_best_fact_items(us_gaap, eps_concepts, "USD/shares")
     ocf_items = _find_best_fact_items(us_gaap, ocf_concepts, "USD")
     capex_items = _find_best_fact_items(us_gaap, capex_concepts, "USD")
+    cash_combined_items = _find_best_fact_items(us_gaap, cash_combined_concepts, "USD")
     cash_items = _find_best_fact_items(us_gaap, cash_concepts, "USD")
-    debt_items = _find_best_fact_items(us_gaap, debt_concepts, "USD")
+    st_inv_items = _find_best_fact_items(us_gaap, st_inv_concepts, "USD")
+    debt_combined_items = _find_best_fact_items(us_gaap, debt_combined_concepts, "USD")
+    debt_noncurrent_items = _find_best_fact_items(us_gaap, debt_noncurrent_concepts, "USD")
+    debt_current_items = _find_best_fact_items(us_gaap, debt_current_concepts, "USD")
+    debt_st_items = _find_best_fact_items(us_gaap, debt_st_concepts, "USD")
     shares_concepts = [
         "WeightedAverageNumberOfDilutedSharesOutstanding",
         "WeightedAverageNumberOfSharesOutstandingDiluted",
@@ -396,8 +408,50 @@ def extract_sec_quarterly_fundamentals(ticker: str) -> Dict[str, Any]:
         annual_rev_match = _get_annual_val(rev_items)
         eps_match = _get_val(eps_items, require_quarterly=True)
         annual_eps_match = _get_annual_val(eps_items)
-        cash_match = _get_val(cash_items, require_quarterly=False)
-        debt_match = _get_val(debt_items, require_quarterly=False)
+        cash_comb_match = _get_val(cash_combined_items, require_quarterly=False)
+        cash_only_match = _get_val(cash_items, require_quarterly=False)
+        st_inv_match = _get_val(st_inv_items, require_quarterly=False)
+
+        # Cash & Short-Term Investments: prefer combined line item, otherwise sum Cash + Short-Term Investments
+        if cash_comb_match and cash_comb_match.get("val") is not None:
+            total_cash_val = float(cash_comb_match["val"])
+            cash_match = cash_comb_match
+        elif cash_only_match and cash_only_match.get("val") is not None:
+            total_cash_val = float(cash_only_match["val"]) + (float(st_inv_match["val"]) if st_inv_match and st_inv_match.get("val") is not None else 0.0)
+            cash_match = cash_only_match
+        else:
+            total_cash_val = None
+            cash_match = None
+
+        # Total Debt: include both noncurrent and current portion of long-term debt + short-term borrowings
+        debt_comb_match = _get_val(debt_combined_items, require_quarterly=False)
+        debt_nc_match = _get_val(debt_noncurrent_items, require_quarterly=False)
+        debt_cur_match = _get_val(debt_current_items, require_quarterly=False)
+        debt_st_match = _get_val(debt_st_items, require_quarterly=False)
+
+        total_debt_val = None
+        if debt_nc_match and debt_nc_match.get("val") is not None:
+            nc_v = float(debt_nc_match["val"])
+            cur_v = float(debt_cur_match["val"]) if debt_cur_match and debt_cur_match.get("val") is not None else 0.0
+            # Only add short-term borrowings if separate from DebtCurrent
+            st_v = 0.0
+            if debt_st_match and debt_st_match.get("val") is not None:
+                if not debt_cur_match or debt_cur_match.get("val") != debt_st_match.get("val"):
+                    st_v = float(debt_st_match["val"])
+            total_debt_val = nc_v + cur_v + st_v
+            if debt_comb_match and debt_comb_match.get("val") is not None:
+                comb_v = float(debt_comb_match["val"])
+                if comb_v > total_debt_val:
+                    total_debt_val = comb_v
+        elif debt_comb_match and debt_comb_match.get("val") is not None:
+            total_debt_val = float(debt_comb_match["val"])
+            if debt_st_match and debt_st_match.get("val") is not None:
+                total_debt_val += float(debt_st_match["val"])
+        elif debt_cur_match and debt_cur_match.get("val") is not None:
+            total_debt_val = float(debt_cur_match["val"])
+        elif debt_st_match and debt_st_match.get("val") is not None:
+            total_debt_val = float(debt_st_match["val"])
+
         ocf_match = _get_val(ocf_items, require_quarterly=True)
         capex_match = _get_val(capex_items, require_quarterly=True)
         shares_match = _get_val(shares_items, require_quarterly=True) or _get_val(shares_items, require_quarterly=False)
@@ -465,8 +519,8 @@ def extract_sec_quarterly_fundamentals(ticker: str) -> Dict[str, Any]:
             "diluted_shares": shares_match.get("val") if shares_match else None,
             "operating_income": opinc_match.get("val") if opinc_match else None,
             "net_income": netinc_match.get("val") if netinc_match else None,
-            "cash": cash_match.get("val") if cash_match else None,
-            "debt": debt_match.get("val") if debt_match else None,
+            "cash": total_cash_val,
+            "debt": total_debt_val,
             "ocf": ocf_match.get("val") if ocf_match else None,
             "capex": abs(capex_match.get("val")) if capex_match and capex_match.get("val") is not None else None,
             "one_offs": one_offs_val,
