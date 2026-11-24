@@ -9,7 +9,11 @@
  * - 8-Section Executive Investment Decision Cockpit Modal
  */
 
-const API_BASE = (window.location.protocol === 'file:' || (window.location.port && window.location.port !== '8080')) ? 'http://localhost:8080' : '';
+const RENDER_API_BASE = 'https://stock-market-analyzer-2066.onrender.com';
+const _isLocalHost = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+const API_BASE = window.location.protocol === 'file:'
+    ? 'http://localhost:8080'
+    : (_isLocalHost ? (window.location.port === '8080' ? '' : 'http://localhost:8080') : RENDER_API_BASE);
 
 const WATCHLIST_TICKERS = [
     { ticker: 'AVGO', name: 'Broadcom Inc.' },
