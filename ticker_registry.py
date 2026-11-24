@@ -886,7 +886,7 @@ TICKER_SPECIFIC_CONTENT: Dict[str, Dict[str, Any]] = {
             "Deployment of custom in-house Maia 100 AI accelerators and Cobalt CPUs optimizing data center inferencing unit economics."
         ],
         "risks": [
-            "Substantial quarterly capital expenditure ($19B+) compressing near-term free cash flow margins prior to capacity monetization.",
+            "Elevated quarterly AI infrastructure capital expenditures compressing near-term free cash flow margins prior to capacity monetization.",
             "European cloud antitrust scrutiny and regulatory oversight regarding AI foundation model governance partnerships."
         ],
         "growth_opportunities": [

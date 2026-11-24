@@ -724,6 +724,7 @@ def extract_quarterly_financials(
                     "cash_raw": fin_cash,
                     "debt": DataSanitizer.fmt_money(fin_debt) if fin_debt else "N/A",
                     "debt_raw": fin_debt,
+                    "capex_raw": abs(q_capex) if q_capex is not None else sec_q.get("capex"),
                     "fcf": DataSanitizer.fmt_money(fin_fcf) if fin_fcf else "N/A",
                     "fcf_raw": fin_fcf,
                     "stale": col_age_days > 120 or vintage_meta["is_stale"]
@@ -2388,8 +2389,23 @@ def perform_audited_scan(ticker: str, as_of_date: Optional[Any] = None) -> Dict[
             debt=c.get("totalDebt") or 0.0,
             base_growth=dcf_base_growth,
             price=price,
-            ticker=raw_ticker
+            ticker=raw_ticker,
+            ttm_ocf=fcf_info.get("ttm_ocf"),
+            ttm_capex=fcf_info.get("ttm_capex")
         )
+        if dcf_scenarios and dcf_scenarios.get("capex_normalized"):
+            m_ratio_pct = int(round((dcf_scenarios.get("maintenance_capex_ratio") or 0.50) * 100))
+            m_cpx_b = (dcf_scenarios.get("maintenance_capex") or 0.0) / 1e9
+            g_cpx_b = (dcf_scenarios.get("growth_capex") or 0.0) / 1e9
+            norm_fcf_b = (dcf_scenarios.get("dcf_fcf_input") or 0.0) / 1e9
+            fcf_info = dict(fcf_info)
+            fcf_info["dcf_normalized_fcf"] = dcf_scenarios.get("dcf_fcf_input")
+            fcf_info["maintenance_capex"] = dcf_scenarios.get("maintenance_capex")
+            fcf_info["growth_capex"] = dcf_scenarios.get("growth_capex")
+            fcf_info["derivation_display"] = (
+                f"{fcf_info.get('derivation_display', '')} "
+                f"[DCF Owner FCF normalized for expansion CapEx: {m_ratio_pct}% maintenance CapEx ${m_cpx_b:.2f}B / growth CapEx ${g_cpx_b:.2f}B → DCF FCF input ${norm_fcf_b:.2f}B]"
+            )
     else:
         dcf_scenarios = None
 
@@ -2434,16 +2450,19 @@ def perform_audited_scan(ticker: str, as_of_date: Optional[Any] = None) -> Dict[
 
     dcf_divergence_note = "N/A"
     if dcf_scenarios:
-        divergent = []
-        for sc_name in ["bear", "base", "bull"]:
-            sc_data = dcf_scenarios.get(sc_name)
-            if isinstance(sc_data, dict):
-                imp_ret = sc_data.get("implied_return")
-                fv_d = sc_data.get("fair_value")
-                if imp_ret is not None and abs(imp_ret) > 50.0 and fv_d is not None:
-                    divergent.append(f"{sc_name.capitalize()} (Fair Value ${fv_d:,.2f}, {imp_ret:+0.1f}% vs spot; Inputs: {sc_data['inputs_display']})")
-        if divergent:
-            dcf_divergence_note = f"Model diverges >50% from market price in: {'; '.join(divergent)}"
+        if dcf_scenarios.get("circuit_breaker_tripped") and dcf_scenarios.get("circuit_breaker_reason"):
+            dcf_divergence_note = dcf_scenarios["circuit_breaker_reason"]
+        else:
+            divergent = []
+            for sc_name in ["bear", "base", "bull"]:
+                sc_data = dcf_scenarios.get(sc_name)
+                if isinstance(sc_data, dict):
+                    imp_ret = sc_data.get("implied_return")
+                    fv_d = sc_data.get("fair_value")
+                    if imp_ret is not None and abs(imp_ret) > 50.0 and fv_d is not None:
+                        divergent.append(f"{sc_name.capitalize()} (Fair Value ${fv_d:,.2f}, {imp_ret:+0.1f}% vs spot; Inputs: {sc_data['inputs_display']})")
+            if divergent:
+                dcf_divergence_note = f"Model diverges >50% from market price in: {'; '.join(divergent)}"
 
     graham_val = calc_graham_number(c["trailingEps"], c["bookValue"])
     trade_plan = calculate_trade_plan(price, c["beta"], s1, s2, r1, r2)
@@ -3144,10 +3163,14 @@ def audit_internal_consistency(
                 "detail": f"Fundamentals TTM FCF (${f_b:.2f}B) contradicts DCF derivation (${d_b:.2f}B)"
             })
 
-    # 4. Delta line cash vs Fundamentals cash
+    # 4. Delta line cash vs Fundamentals cash (exclude 'cash capex' / 'cash flow')
     bs_fund = funds_by_metric.get("Cash & Balance Sheet Health", {})
     m_bs_cash = re.search(r"Cash:\s*\$([0-9]+(?:\.[0-9]+)?)B", str(bs_fund.get("value", "")), re.I)
-    m_dl_cash = re.search(r"cash[^$]{0,30}\$([0-9]+(?:\.[0-9]+)?)B", str(delta_line or ""), re.I)
+    m_dl_cash = re.search(
+        r"(?:cash\s+(?:&|and)\s+(?:short-term\s+)?investments|gross\s+cash\s+reserves|cash\s+reserves|cash\s+balance|cash\s+expanded)[^$]{0,30}\$([0-9]+(?:\.[0-9]+)?)B",
+        str(delta_line or ""),
+        re.I
+    )
     if m_bs_cash and m_dl_cash:
         bs_c = float(m_bs_cash.group(1))
         dl_c = float(m_dl_cash.group(1))
@@ -3382,8 +3405,9 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
     strong_buy_zone = f"${s2:,.2f} – ${s1:,.2f}"
     mid_best = round((b_low + b_high) / 2.0, 2)
 
-    # Target trio
-    if dcf_scen and dcf_scen.get("base") and dcf_scen["base"].get("fair_value") is not None:
+    # Target trio (exclude diverged/halted DCF from verdict)
+    dcf_halted = bool(dcf_scen and dcf_scen.get("circuit_breaker_tripped"))
+    if dcf_scen and not dcf_halted and dcf_scen.get("base") and dcf_scen["base"].get("fair_value") is not None:
         m27_base_p = dcf_scen["base"]["fair_value"]
         m27_bear_p = dcf_scen["bear"]["fair_value"]
         m27_bull_p = dcf_scen["bull"]["fair_value"]
@@ -3395,17 +3419,23 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
         dcf_base_str = f"${m27_base_p:,.2f}"
         dcf_bear_str = f"${m27_bear_p:,.2f}"
         dcf_bull_str = f"${m27_bull_p:,.2f}"
+    elif dcf_halted:
+        m27_base_p = m27_bear_p = m27_bull_p = None
+        m27_base_ret = m27_bear_ret = m27_bull_ret = None
+        val_badge = "unavailable — DCF model unreliable (diverged >50% from spot)"
+        dcf_conclusion = val_badge
+        dcf_base_str = dcf_bear_str = dcf_bull_str = "Model unreliable — do not use"
     else:
         m27_base_p = m27_bear_p = m27_bull_p = None
         m27_base_ret = m27_bear_ret = m27_bull_ret = None
-        val_badge = "FAIRLY VALUED"
+        val_badge = "unavailable — DCF inputs returned no data"
         dcf_conclusion = val_badge
-        dcf_base_str = dcf_bear_str = dcf_bull_str = None
+        dcf_base_str = dcf_bear_str = dcf_bull_str = "unavailable — DCF inputs returned no data"
 
     # Forward P/E with dynamic ticker-specific fiscal year label (Rule 5)
     fy_label = get_fiscal_year_label(ticker, as_of_dt)
     fwd_pe_num = ratios.get("forward_pe", {}).get("numeric")
-    fwd_pe_str = f"{fwd_pe_num:.1f}x ({fy_label} Consensus)" if fwd_pe_num else "n/a (source unavailable)"
+    fwd_pe_str = f"{fwd_pe_num:.1f}x ({fy_label} Consensus)" if fwd_pe_num else "unavailable — Wall Street consensus returned no data"
     sector_pe = 26.5
     if fwd_pe_num and fwd_pe_num > 0:
         sec_diff = round(((fwd_pe_num - sector_pe) / sector_pe) * 100.0, 1)
@@ -3416,7 +3446,7 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
         else:
             sec_ctx = f"{fwd_pe_num:.1f}x vs tech sector {sector_pe:.1f}x ({sec_diff:.1f}% premium to peer group)"
     else:
-        sec_ctx = "n/a (source unavailable)"
+        sec_ctx = "unavailable — Wall Street consensus returned no data"
 
     # TTM EPS and P/E
     q_eps_list = [q.get("eps_gaap") for q in q_fin[:4] if q.get("eps_gaap") is not None] if q_fin else []
@@ -3483,14 +3513,14 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
         tgt_mean_str = f"${target_mean:,.2f} ({target_upside:+0.1f}%)"
     else:
         target_upside = None
-        cons_target_str = "N/A"
-        tgt_mean_str = "N/A"
+        cons_target_str = "unavailable — analyst consensus returned no data"
+        tgt_mean_str = "unavailable — analyst consensus returned no data"
         target_count = None
 
     if is_crypto(ticker):
         analyst_consensus_source = "[Market Benchmark] Cryptocurrency has no equity analyst consensus"
     elif target_mean is None:
-        analyst_consensus_source = "[Analyst Estimate] Wall Street Consensus unavailable"
+        analyst_consensus_source = "unavailable — Wall Street analyst consensus returned no data"
     elif target_count:
         analyst_consensus_source = f"[Analyst Estimate] Wall Street Consensus ({target_count} analysts) retrieved {as_of_dt}"
     else:
@@ -3499,7 +3529,7 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
     if is_crypto(ticker):
         forward_pe_source = "[Market Benchmark] N/A (Cryptocurrency has no earnings consensus)"
     elif fwd_pe_num is None:
-        forward_pe_source = "[Analyst Estimate] Forward P/E consensus unavailable"
+        forward_pe_source = "unavailable — Wall Street Forward P/E consensus returned no data"
     else:
         forward_pe_source = f"[Analyst Estimate] Wall Street Consensus as of {as_of_dt}"
 
@@ -3507,13 +3537,13 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
         low_upside = round(((target_low - p) / p) * 100.0, 1)
         tgt_low_str = f"${target_low:,.2f} ({low_upside:+0.1f}%)"
     else:
-        tgt_low_str = "N/A"
+        tgt_low_str = "unavailable — analyst consensus returned no data"
 
     if target_high and p > 0:
         high_upside = round(((target_high - p) / p) * 100.0, 1)
         tgt_high_str = f"${target_high:,.2f} ({high_upside:+0.1f}%)"
     else:
-        tgt_high_str = "N/A"
+        tgt_high_str = "unavailable — analyst consensus returned no data"
 
     target_clause = f" Our base target remains ${target_mean:,.2f} ({target_upside:+0.1f}%)." if (target_mean and target_upside is not None) else ""
 
@@ -3710,9 +3740,11 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
         rev_yoy_str = "N/A"
         rev_val_str = q0.get("revenue", "N/A")
 
+    eps_basis_label = "Adjusted, non-GAAP" if t_eps_vals else "GAAP"
+    eps_basis_mismatch = False
     if t_eps_vals:
         curr_e = round(float(t_eps_vals[0]), 2)
-        # Match year-ago quarter EPS from table_quarters on the exact same basis (prevents GAAP vs non-GAAP contradiction)
+        # Match year-ago quarter EPS from table_quarters on the exact same basis (prevents GAAP vs non-GAAP mix)
         raw_prior = None
         q4_period_target = q4.get("period_end_date")
         for tq in table_quarters[1:]:
@@ -3731,16 +3763,23 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
                     raw_prior = float(v_s)
                 except Exception:
                     pass
-        if raw_prior is None and q4.get("eps_gaap") is not None:
-            raw_prior = float(q4.get("eps_gaap"))
-        prior_e = round(float(raw_prior), 2) if raw_prior is not None else None
-        if prior_e is not None and abs(prior_e) > 0:
-            eps_yoy_calc = round(((curr_e - prior_e) / abs(prior_e)) * 100.0, 1)
-            eps_yoy_str = f"{eps_yoy_calc:+0.1f}% YoY"
-            eps_val_str = f"${curr_e:.2f} ({eps_yoy_str} vs ${prior_e:.2f} in {q4.get('quarter', 'Q')})"
+        if raw_prior is not None:
+            prior_e = round(float(raw_prior), 2)
+            if abs(prior_e) > 0:
+                eps_yoy_calc = round(((curr_e - prior_e) / abs(prior_e)) * 100.0, 1)
+                eps_yoy_str = f"{eps_yoy_calc:+0.1f}% YoY ({eps_basis_label})"
+                eps_val_str = f"${curr_e:.2f} [{eps_basis_label}] ({eps_yoy_calc:+0.1f}% YoY vs ${prior_e:.2f} in {q4.get('quarter', 'Q')})"
+            else:
+                eps_yoy_str = "unavailable — prior quarter EPS is zero"
+                eps_val_str = f"${curr_e:.2f} [{eps_basis_label}]"
+        elif q4.get("eps_gaap") is not None:
+            # Current is Adjusted non-GAAP while only GAAP is available for prior quarter -> halt YoY comparison
+            eps_basis_mismatch = True
+            eps_yoy_str = "Halted — EPS basis mismatch (Adjusted vs GAAP)"
+            eps_val_str = f"${curr_e:.2f} [{eps_basis_label}] (YoY halted — prior quarter only available on GAAP basis)"
         else:
-            eps_yoy_str = "N/A"
-            eps_val_str = f"${curr_e:.2f}"
+            eps_yoy_str = "unavailable — prior quarter EPS returned no data"
+            eps_val_str = f"${curr_e:.2f} [{eps_basis_label}]"
     else:
         eps0_num = q0.get("eps_gaap")
         eps4_num = q4.get("eps_gaap")
@@ -3749,14 +3788,14 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
             p_e = round(float(eps4_num), 2)
             if abs(p_e) > 0:
                 eps_yoy_calc = round(((c_e - p_e) / abs(p_e)) * 100.0, 1)
-                eps_yoy_str = f"{eps_yoy_calc:+0.1f}% YoY"
-                eps_val_str = f"${c_e:.2f} ({eps_yoy_str} vs ${p_e:.2f} in {q4.get('quarter', 'Q')})"
+                eps_yoy_str = f"{eps_yoy_calc:+0.1f}% YoY (GAAP)"
+                eps_val_str = f"${c_e:.2f} [GAAP] ({eps_yoy_calc:+0.1f}% YoY vs ${p_e:.2f} in {q4.get('quarter', 'Q')})"
             else:
-                eps_yoy_str = "N/A"
-                eps_val_str = f"${c_e:.2f}"
+                eps_yoy_str = "unavailable — prior quarter EPS is zero"
+                eps_val_str = f"${c_e:.2f} [GAAP]"
         else:
-            eps_yoy_str = "N/A"
-            eps_val_str = q0.get("eps_gaap_formatted", "N/A")
+            eps_yoy_str = "unavailable — EPS source returned no data"
+            eps_val_str = f"{q0.get('eps_gaap_formatted', 'unavailable — EPS source returned no data')} [GAAP]" if q0.get("eps_gaap") is not None else "unavailable — EPS source returned no data"
 
     # Quarterly FCF from latest quarter
     q_fcf = q0.get("fcf_raw")
@@ -3922,7 +3961,8 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
     growth_list = t_content.get("growth_opportunities", [])
     options_move = t_content.get("options_implied_move", "N/A")
 
-    # Dynamic, freshness-checked "What changed since last run" line derived from latest SEC filing & current response
+    # Dynamic, freshness-checked "What changed since last run" line derived strictly from latest filed quarter.
+    # Rule: carry latest filing date; never reuse a prior-year sentence; if latest filing is not loaded/stale, show no narrative line at all.
     if is_crypto(ticker):
         delta_line = t_content.get("delta_line", "What changed since last run: Live crypto quote and rolling technical trendlines updated.")
     else:
@@ -3933,29 +3973,26 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
         latest_q_lbl = q0.get("quarter", "Latest Quarter")
         latest_q_end = q0.get("period_end_date", "")
 
-        if is_stale or (filing_age is not None and filing_age > 120):
-            delta_line = (
-                f"Stale filing alert: Latest SEC Form {filing_form} "
-                f"(period ended {vm.get('latest_filing_period_end') or latest_q_end}, filed {filing_dt or 'unknown'}"
-                f"{f', {filing_age} days old' if filing_age is not None else ''}) "
-                f"exceeds the 120-day freshness threshold; no recent filing changes to report."
-            )
+        if is_stale or not filing_dt or (filing_age is not None and filing_age > 120):
+            delta_line = ""
         else:
             parts = []
-            if rev_val_str and rev_val_str != "N/A":
+            if rev_val_str and not rev_val_str.startswith(("N/A", "unavailable")):
                 parts.append(f"quarterly revenue reached {rev_val_str}")
-            if eps_val_str and eps_val_str != "N/A":
+            if eps_val_str and not eps_val_str.startswith(("N/A", "unavailable")):
                 parts.append(f"diluted EPS came in at {eps_val_str}")
+            if q0.get("capex_raw"):
+                parts.append(f"quarterly cash capex was {DataSanitizer.fmt_money(q0['capex_raw'])}")
             if fcf_info and fcf_info.get("owner_fcf"):
                 parts.append(f"TTM FCF stands at {DataSanitizer.fmt_money(fcf_info['owner_fcf'])}")
             if tot_cash:
                 parts.append(f"cash & short-term investments stand at {DataSanitizer.fmt_money(tot_cash)}")
-            filing_ref = f"Form {filing_form} (filed {filing_dt})" if filing_dt else f"Form {filing_form}"
+            filing_ref = f"Form {filing_form} (filed {filing_dt})"
             period_ref = f"{latest_q_lbl} ended {latest_q_end}" if latest_q_end else latest_q_lbl
             if parts:
                 delta_line = f"What changed since last run: Latest {filing_ref} / {period_ref} — " + "; ".join(parts) + "."
             else:
-                delta_line = f"What changed since last run: Latest {filing_ref} ({period_ref}) audited; fundamentals and TTM ratios updated."
+                delta_line = ""
 
     # Cross-validation across two independent sources + same-response internal consistency (Rule 4)
     cross_val = perform_cross_validation(ticker, scan_data, info)
@@ -3968,6 +4005,21 @@ def build_legacy_decision_dossier(scan_data: dict) -> dict:
             analyst_target_str=cons_target_str,
             analyst_source_str=analyst_consensus_source
         )
+        if eps_basis_mismatch:
+            internal_contradictions.append({
+                "check": "eps_basis_mismatch",
+                "detail": "EPS YoY comparison halted due to Adjusted non-GAAP vs GAAP basis mismatch"
+            })
+        if fwd_pe_num is None:
+            internal_contradictions.append({
+                "check": "missing_forward_pe",
+                "detail": "Forward P/E unavailable — Wall Street consensus returned no data"
+            })
+        if target_mean is None:
+            internal_contradictions.append({
+                "check": "missing_analyst_targets",
+                "detail": "Analyst price targets unavailable — analyst consensus returned no data"
+            })
         cross_val["internal_contradictions"] = internal_contradictions
         if internal_contradictions:
             cross_val["has_conflict"] = True

@@ -292,7 +292,9 @@ def compute_fundamental_dcf_scenarios(
     years: int = 5,
     ticker: Optional[str] = None,
     is_cyclical: Optional[bool] = None,
-    off_balance_sheet_capex: float = 0.0
+    off_balance_sheet_capex: float = 0.0,
+    ttm_ocf: Optional[float] = None,
+    ttm_capex: Optional[float] = None
 ) -> Optional[Dict[str, Any]]:
     """
     Computes Bear, Base, Bull Fair Values strictly from fundamental inputs.
@@ -325,6 +327,28 @@ def compute_fundamental_dcf_scenarios(
         if off_balance_sheet_capex == 0.0 and reg_entry:
             spec_adj = reg_entry.get("special_adjustments", {})
             off_balance_sheet_capex = float(spec_adj.get("jv_capex_obligation_usd", 0.0))
+
+        # Growth vs. Maintenance CapEx normalization (shared rule across all tickers):
+        # When CapEx exceeds 30% of Operating Cash Flow (heavy expansion/AI buildout),
+        # split into maintenance CapEx (from registry maintenance_capex_ratio, default 0.50)
+        # and growth CapEx so steady-state Owner FCF is not artificially crushed.
+        # Raw TTM OCF, TTM CapEx, and raw TTM FCF remain untouched in reporting.
+        capex_normalized = False
+        maint_ratio = float(reg_entry.get("maintenance_capex_ratio", 0.50)) if reg_entry else 0.50
+        maint_capex = None
+        growth_capex = None
+        if (
+            not is_cyclical
+            and ttm_ocf is not None and ttm_capex is not None
+            and float(ttm_ocf) > 0 and float(ttm_capex) > 0
+            and (float(ttm_capex) / float(ttm_ocf)) > 0.30
+        ):
+            maint_capex = round(float(ttm_capex) * maint_ratio, 2)
+            growth_capex = round(float(ttm_capex) - maint_capex, 2)
+            norm_fcf = round(float(ttm_ocf) - maint_capex, 2)
+            if norm_fcf > fcf0:
+                fcf0 = norm_fcf
+                capex_normalized = True
 
         # 1. Cost of Capital (WACC) via CAPM
         rf = 0.042
@@ -407,6 +431,8 @@ def compute_fundamental_dcf_scenarios(
             implied_ret = round(((fair_val - p) / p) * 100.0, 1) if p > 0 else 0.0
 
             input_str = f"Growth: {g*100:.1f}%, WACC: {w*100:.1f}%, Terminal: {gt*100:.1f}%"
+            hand_val = hand_reconcile_dcf(fcf0, sh, g, w, gt, net_cash, years)
+            hand_diff_pct = round(abs(fair_val - hand_val) / max(hand_val, 0.01) * 100.0, 2)
 
             scenarios[name] = {
                 "fair_value": fair_val,
@@ -422,33 +448,50 @@ def compute_fundamental_dcf_scenarios(
                 "terminal_pct_str": f"{gt*100:.1f}%",
                 "inputs_display": input_str,
                 "description": desc,
-                "hand_reconciled": True
+                "hand_reconciled": hand_diff_pct <= 5.0,
+                "hand_reconciled_value": hand_val,
+                "hand_reconcile_diff_pct": hand_diff_pct
             }
 
-        # Rule 7 Mandate: DCF CIRCUIT-BREAKER
-        # If bear-case fair value exceeds spot price by > 50%, model is broken for that ticker:
-        # halt, flag, do not display values. A diverged DCF must never be cited as "margin of safety."
+        # Rule 7 Mandate: DCF CIRCUIT-BREAKER (>50% divergence in EITHER direction)
+        # Halt if Bear exceeds spot by >50% OR if Base diverges from spot by >50% (above or below).
         bear_fv = scenarios["bear"]["fair_value"]
+        base_fv = scenarios["base"]["fair_value"]
+        base_div_pct = abs((base_fv - p) / p) * 100.0 if p > 0 else 0.0
         circuit_breaker_tripped = False
         circuit_breaker_reason = None
         if p > 0 and bear_fv > p * 1.50:
             circuit_breaker_tripped = True
             circuit_breaker_reason = (
-                f"DCF Circuit-Breaker Tripped: Bear fair value (${bear_fv:,.2f}) exceeds spot "
-                f"(${p:,.2f}) by {((bear_fv - p) / p) * 100:.1f}% (>50%). DCF model halted."
+                f"Model unreliable — do not use: Bear fair value (${bear_fv:,.2f}) exceeds spot "
+                f"(${p:,.2f}) by {((bear_fv - p) / p) * 100:.1f}% (>50%). DCF halted and excluded from verdict."
             )
+        elif p > 0 and base_div_pct > 50.0:
+            circuit_breaker_tripped = True
+            signed_div = ((base_fv - p) / p) * 100.0
+            circuit_breaker_reason = (
+                f"Model unreliable — do not use: Base fair value (${base_fv:,.2f}) diverges "
+                f"{signed_div:+.1f}% (>50%) from spot (${p:,.2f}). DCF halted and excluded from verdict."
+            )
+
+        if circuit_breaker_tripped:
             logger.warning(f"Circuit breaker tripped for {ticker or 'stock'}: {circuit_breaker_reason}")
-            # Mark values as suppressed so they are never displayed as margin of safety
             for sc in ["bear", "base", "bull"]:
-                scenarios[sc]["fair_value_str"] = "N/A (Halted — Circuit-Breaker)"
-                scenarios[sc]["implied_return_str"] = "N/A"
+                scenarios[sc]["fair_value_str"] = "Model unreliable — do not use"
+                scenarios[sc]["implied_return_str"] = "unavailable — DCF diverged >50% from spot"
                 scenarios[sc]["fair_value"] = None
+                scenarios[sc]["implied_return"] = None
 
         scenarios["circuit_breaker_tripped"] = circuit_breaker_tripped
         scenarios["circuit_breaker_reason"] = circuit_breaker_reason
         scenarios["is_valid"] = not circuit_breaker_tripped
         scenarios["is_cyclical"] = is_cyclical
         scenarios["off_balance_sheet_capex"] = off_balance_sheet_capex
+        scenarios["dcf_fcf_input"] = round(fcf0, 2)
+        scenarios["capex_normalized"] = capex_normalized
+        scenarios["maintenance_capex_ratio"] = maint_ratio if capex_normalized else None
+        scenarios["maintenance_capex"] = maint_capex
+        scenarios["growth_capex"] = growth_capex
 
         # Permanent guardrail: assert no valid scenario equals spot * exact fabrication fingerprints (0.85/1.25/1.50) within 0.1%
         if p > 0 and not circuit_breaker_tripped:
