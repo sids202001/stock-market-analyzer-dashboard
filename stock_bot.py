@@ -586,7 +586,10 @@ async def scan_stock(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += f"• <b>Conservative Bear:</b> <code>${bear_fv:,.2f}</code> ({bear_ret:+0.1f}%) [Inputs: {dcf_scenarios['bear']['inputs_display']}]\n"
             msg += f"• <b>Optimistic Bull:</b> <code>${bull_fv:,.2f}</code> ({bull_ret:+0.1f}%) [Inputs: {dcf_scenarios['bull']['inputs_display']}]\n"
             divergent = []
-            for sc_name, sc_data in dcf_scenarios.items():
+            for sc_name in ("bear", "base", "bull"):
+                sc_data = dcf_scenarios.get(sc_name)
+                if not isinstance(sc_data, dict):
+                    continue
                 imp_ret = sc_data.get("implied_return")
                 if imp_ret is not None and abs(imp_ret) > 50.0:
                     divergent.append(f"{sc_name.capitalize()} ({imp_ret:+0.1f}%)")
@@ -706,7 +709,7 @@ async def scan_stock(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(msg, parse_mode='HTML', disable_web_page_preview=True)
 
     except Exception as e:
-        logging.error(f"Scan error: {e}")
+        logging.exception(f"Scan error: {e}")
         await update.message.reply_text(f"❌ Error during advanced scan. Please try again.")
 
 
