@@ -1978,21 +1978,93 @@ def perform_audited_scan(ticker: str, as_of_date: Optional[Any] = None) -> Dict[
     query_ticker = f"{raw_ticker}-USD" if raw_ticker in ["SOL", "BTC", "ETH", "XRP", "DOGE"] else raw_ticker
     stock = yf.Ticker(query_ticker)
 
-    try:
-        info = stock.info
-    except Exception:
-        info = {}
+    # Fetch 2y price history first (uses chart v8 API — does NOT require Yahoo crumb)
+    hist = None
+    for attempt, delay in enumerate((0.0, 1.0, 2.0)):
+        if delay > 0:
+            time.sleep(delay)
+        try:
+            hist = stock.history(period="2y")
+            if hist is not None and not hist.empty:
+                hist = hist.dropna(subset=["Close", "High", "Low"])
+                if len(hist) >= 5:
+                    break
+        except Exception as hist_err:
+            logger.warning(f"history attempt {attempt + 1} failed for {query_ticker}: {hist_err}")
+            stock = yf.Ticker(query_ticker)
 
+    # Fetch yfinance .info with retry + exponential backoff (crumb-protected endpoint)
+    info = {}
+    for attempt, delay in enumerate((0.0, 1.0, 2.5)):
+        if delay > 0:
+            time.sleep(delay)
+        try:
+            candidate = stock.info
+            if isinstance(candidate, dict) and (
+                "shortName" in candidate or "symbol" in candidate or "regularMarketPrice" in candidate
+            ):
+                info = candidate
+                break
+        except Exception as info_err:
+            logger.warning(f"yfinance .info attempt {attempt + 1} failed for {query_ticker}: {info_err}")
+            stock = yf.Ticker(query_ticker)
+
+    # If Yahoo rate-limits/blocks crumb (.info empty), hydrate fallback metadata from fast_info + hist + SEC EDGAR
     if not info or ("shortName" not in info and "symbol" not in info and "regularMarketPrice" not in info):
-        return {
-            "success": False,
-            "error": f"Ticker '{raw_ticker}' not found or market data unavailable. Please check the symbol.",
-            "status_code": 404
-        }
+        if hist is None or hist.empty or len(hist) < 5:
+            return {
+                "success": False,
+                "error": f"Ticker '{raw_ticker}' not found or market data unavailable. Please check the symbol.",
+                "status_code": 404
+            }
+        logger.warning(f"yfinance .info unavailable for {raw_ticker} (likely crumb rate-limit); falling back to fast_info + chart history + SEC EDGAR")
+        fallback_info = dict(info) if isinstance(info, dict) else {}
+        fallback_info.setdefault("symbol", raw_ticker)
+        fallback_info.setdefault("regularMarketPrice", float(hist["Close"].iloc[-1]))
+        fallback_info.setdefault("currentPrice", float(hist["Close"].iloc[-1]))
+        if len(hist) >= 2:
+            fallback_info.setdefault("previousClose", float(hist["Close"].iloc[-2]))
+        try:
+            fi = stock.fast_info
+            if fi:
+                if getattr(fi, "market_cap", None):
+                    fallback_info.setdefault("marketCap", float(fi.market_cap))
+                if getattr(fi, "shares", None):
+                    fallback_info.setdefault("sharesOutstanding", float(fi.shares))
+                if getattr(fi, "currency", None):
+                    fallback_info.setdefault("currency", str(fi.currency))
+                if getattr(fi, "year_high", None):
+                    fallback_info.setdefault("fiftyTwoWeekHigh", float(fi.year_high))
+                if getattr(fi, "year_low", None):
+                    fallback_info.setdefault("fiftyTwoWeekLow", float(fi.year_low))
+        except Exception:
+            pass
+        try:
+            sec_f = extract_sec_quarterly_fundamentals(raw_ticker)
+            qs = sec_f.get("quarters", {}) if isinstance(sec_f, dict) else {}
+            if qs:
+                latest_q = next(iter(qs.values()))
+                if latest_q.get("diluted_shares"):
+                    fallback_info.setdefault("sharesOutstanding", float(latest_q["diluted_shares"]))
+                    fallback_info.setdefault("marketCap", float(latest_q["diluted_shares"]) * float(hist["Close"].iloc[-1]))
+                if latest_q.get("cash") is not None:
+                    fallback_info.setdefault("totalCash", float(latest_q["cash"]))
+                if latest_q.get("debt") is not None:
+                    fallback_info.setdefault("totalDebt", float(latest_q["debt"]))
+                if latest_q.get("annual_revenue"):
+                    fallback_info.setdefault("totalRevenue", float(latest_q["annual_revenue"]))
+                if latest_q.get("annual_eps_gaap"):
+                    fallback_info.setdefault("trailingEps", float(latest_q["annual_eps_gaap"]))
+                if latest_q.get("revenue") and latest_q.get("operating_income"):
+                    fallback_info.setdefault("operatingMargins", float(latest_q["operating_income"]) / float(latest_q["revenue"]))
+                if latest_q.get("revenue") and latest_q.get("net_income"):
+                    fallback_info.setdefault("profitMargins", float(latest_q["net_income"]) / float(latest_q["revenue"]))
+        except Exception:
+            pass
+        fallback_info.setdefault("shortName", raw_ticker)
+        fallback_info.setdefault("longName", fallback_info["shortName"])
+        info = fallback_info
 
-    hist = stock.history(period="2y")
-    if hist is not None and not hist.empty:
-        hist = hist.dropna(subset=["Close", "High", "Low"])
     if hist is None or hist.empty or len(hist) < 5:
         return {
             "success": False,
