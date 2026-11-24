@@ -11,216 +11,38 @@
 
 const API_BASE = (window.location.protocol === 'file:' || (window.location.port && window.location.port !== '8080')) ? 'http://localhost:8080' : '';
 
-const stocks = [
-    {
-        ticker: 'AVGO',
-        name: 'Broadcom Inc.',
-        price: '$346.13',
-        rawPrice: 346.13,
-        verdict: 'Strong Buy',
-        confidence: '9/10',
-        dataStatus: '🟢 Verified',
-        buyZone: '$325 – $339',
-        valuation: 'Reasonable (28x)',
-        setup: 'Bullish Correction',
-        target2027: '$443 (+28%)',
-        target2027Raw: 443,
-        reason: 'Q3 revenue surging to $29.6B (+85.5% YoY) with $16.7B in AI chips (+221% YoY); $39.4B TTM FCF (44.2% margin).',
-        class: 'verdict-strong-buy'
-    },
-    {
-        ticker: 'NVDA',
-        name: 'NVIDIA Corporation',
-        price: '$212.11',
-        rawPrice: 212.11,
-        verdict: 'Strong Buy',
-        confidence: '9/10',
-        dataStatus: '🟢 Verified',
-        buyZone: '$199 – $208',
-        valuation: 'Reasonable (28x)',
-        setup: 'Bullish Correction',
-        target2027: '$280 (+32%)',
-        target2027Raw: 280,
-        reason: 'Undisputed AI infrastructure monopoly; 105.9% YoY growth, 46.2% FCF margin, Blackwell sold out through 2027.',
-        class: 'verdict-strong-buy'
-    },
-    {
-        ticker: 'MSFT',
-        name: 'Microsoft Corporation',
-        price: '$525.18',
-        rawPrice: 525.18,
-        verdict: 'Hold',
-        confidence: '6/10',
-        dataStatus: '🟢 Verified',
-        buyZone: '$483 – $504',
-        valuation: 'Expensive (22x)',
-        setup: 'Confirmed Uptrend',
-        target2027: '$214 (-59%)',
-        target2027Raw: 214,
-        reason: 'Enterprise cloud/AI scale; $90.01B quarterly rev (+17.8% YoY), $66.99B TTM FCF. DCF Base fair value $213.87 (-59.3%).',
-        class: 'verdict-hold'
-    },
-    {
-        ticker: 'GOOGL',
-        name: 'Alphabet Inc.',
-        price: '$345.67',
-        rawPrice: 345.67,
-        verdict: 'Strong Buy',
-        confidence: '9/10',
-        dataStatus: '🟢 Verified',
-        buyZone: '$328 – $342',
-        valuation: 'Cheap (20x)',
-        setup: 'Bullish',
-        target2027: '$440 (+28%)',
-        target2027Raw: 440,
-        reason: 'Cheapest Big Tech multiple; Google Cloud margins scaling from 3% to 11%+, $87B net cash.',
-        class: 'verdict-strong-buy'
-    },
-    {
-        ticker: 'AMZN',
-        name: 'Amazon.com Inc.',
-        price: '$218.40',
-        rawPrice: 218.40,
-        verdict: 'Strong Buy',
-        confidence: '9/10',
-        dataStatus: '🟢 Verified',
-        buyZone: '$207 – $216',
-        valuation: 'Reasonable (32x)',
-        setup: 'Bullish',
-        target2027: '$280 (+28%)',
-        target2027Raw: 280,
-        reason: 'Free cash flow inflection; AWS accelerating 19% YoY, fulfillment cost efficiencies, $50B ads.',
-        class: 'verdict-strong-buy'
-    },
-    {
-        ticker: 'META',
-        name: 'Meta Platforms Inc.',
-        price: '$660.00',
-        rawPrice: 660.00,
-        verdict: 'Buy',
-        confidence: '8/10',
-        dataStatus: '🟢 Verified',
-        buyZone: '$620 – $647',
-        valuation: 'Reasonable (24x)',
-        setup: 'Bullish',
-        target2027: '$825 (+25%)',
-        target2027Raw: 825,
-        reason: 'Advantage+ AI ad ROI dominance, 3.27B daily users, 73% YoY EPS growth, heavy buybacks.',
-        class: 'verdict-buy'
-    },
-    {
-        ticker: 'PLTR',
-        name: 'Palantir Technologies',
-        price: '$172.85',
-        rawPrice: 172.85,
-        verdict: 'Buy',
-        confidence: '8/10',
-        dataStatus: '🟢 Verified',
-        buyZone: '$160 – $169',
-        valuation: 'Reasonable (48x)',
-        setup: 'Bullish',
-        target2027: '$221 (+28%)',
-        target2027Raw: 221,
-        reason: 'US commercial AIP bootcamps expanding +55% YoY, sustained GAAP profits, zero debt.',
-        class: 'verdict-buy'
-    },
-    {
-        ticker: 'ADBE',
-        name: 'Adobe Inc.',
-        price: '$263.16',
-        rawPrice: 263.16,
-        verdict: 'Strong Buy',
-        confidence: '9/10',
-        dataStatus: '🟢 Verified',
-        buyZone: '$250 – $260',
-        valuation: 'Cheap (22x)',
-        setup: 'Bullish Correction',
-        target2027: '$342 (+30%)',
-        target2027Raw: 342,
-        reason: 'Lowest multiple in a decade; Firefly AI enterprise monetization, 34% FCF margin compounder.',
-        class: 'verdict-strong-buy'
-    },
-    {
-        ticker: 'AAPL',
-        name: 'Apple Inc.',
-        price: '$334.97',
-        rawPrice: 334.97,
-        verdict: 'Hold',
-        confidence: '7/10',
-        dataStatus: '🟢 Verified',
-        buyZone: '$308 – $321',
-        valuation: 'Expensive (31x)',
-        setup: 'Neutral',
-        target2027: '$375 (+12%)',
-        target2027Raw: 375,
-        reason: 'Massive $100B+ annual buybacks and high-margin Services, but hardware cycle remains sluggish.',
-        class: 'verdict-hold'
-    },
-    {
-        ticker: 'TSLA',
-        name: 'Tesla Inc.',
-        price: '$218.60',
-        rawPrice: 218.60,
-        verdict: 'Hold',
-        confidence: '6/10',
-        dataStatus: '🟢 Verified',
-        buyZone: '$192 – $205',
-        valuation: 'Expensive (72x)',
-        setup: 'Neutral',
-        target2027: '$251 (+15%)',
-        target2027Raw: 251,
-        reason: 'EV auto margins under pressure (~14.6%); wait for Robotaxi or sub-$30k delivery inflection.',
-        class: 'verdict-hold'
-    },
-    {
-        ticker: 'AMD',
-        name: 'Advanced Micro Devices',
-        price: '$158.40',
-        rawPrice: 158.40,
-        verdict: 'Hold',
-        confidence: '7/10',
-        dataStatus: '🟢 Verified',
-        buyZone: '$145 – $153',
-        valuation: 'Reasonable (38x)',
-        setup: 'Neutral',
-        target2027: '$190 (+20%)',
-        target2027Raw: 190,
-        reason: 'Data Center MI300X AI GPUs surging, but gaming and embedded drag lingering; wait for pullback.',
-        class: 'verdict-hold'
-    },
-    {
-        ticker: 'QCOM',
-        name: 'Qualcomm Inc.',
-        price: '$178.71',
-        rawPrice: 178.71,
-        verdict: 'Buy',
-        confidence: '8/10',
-        dataStatus: '🟢 Verified',
-        buyZone: '$169 – $176',
-        valuation: 'Reasonable (18x)',
-        setup: 'Bullish',
-        target2027: '$225 (+26%)',
-        target2027Raw: 225,
-        reason: 'Snapdragon X Elite AI PC silicon adoption, automotive revenue >$3B, edge AI smartphone refresh.',
-        class: 'verdict-buy'
-    },
-    {
-        ticker: 'INTC',
-        name: 'Intel Corporation',
-        price: '$23.50',
-        rawPrice: 23.50,
-        verdict: 'Avoid / Sell',
-        confidence: '7/10',
-        dataStatus: '🟢 Verified',
-        buyZone: '$19 – $21',
-        valuation: 'Expensive',
-        setup: 'Bearish',
-        target2027: '$24 (+2%)',
-        target2027Raw: 24,
-        reason: 'Severe foundry losses, negative free cash flow (-$12.6B), continuing share loss to AMD.',
-        class: 'verdict-avoid'
-    }
+const WATCHLIST_TICKERS = [
+    { ticker: 'AVGO', name: 'Broadcom Inc.' },
+    { ticker: 'NVDA', name: 'NVIDIA Corporation' },
+    { ticker: 'MSFT', name: 'Microsoft Corporation' },
+    { ticker: 'GOOGL', name: 'Alphabet Inc.' },
+    { ticker: 'AMZN', name: 'Amazon.com Inc.' },
+    { ticker: 'META', name: 'Meta Platforms Inc.' },
+    { ticker: 'PLTR', name: 'Palantir Technologies' },
+    { ticker: 'ADBE', name: 'Adobe Inc.' },
+    { ticker: 'AAPL', name: 'Apple Inc.' },
+    { ticker: 'TSLA', name: 'Tesla Inc.' },
+    { ticker: 'AMD', name: 'Advanced Micro Devices' },
+    { ticker: 'QCOM', name: 'Qualcomm Inc.' },
+    { ticker: 'INTC', name: 'Intel Corporation' }
 ];
+
+const stocks = WATCHLIST_TICKERS.map(item => ({
+    ticker: item.ticker,
+    name: item.name,
+    price: 'Loading…',
+    rawPrice: null,
+    verdict: 'Loading…',
+    confidence: '—',
+    dataStatus: '⏳ Loading Live',
+    buyZone: '—',
+    valuation: '—',
+    setup: '—',
+    target2027: '—',
+    target2027Raw: null,
+    reason: 'Fetching live market quote… Click to run full live SEC EDGAR + DCF scan.',
+    class: 'verdict-hold'
+}));
 
 let currentFilter = 'All';
 
@@ -434,47 +256,47 @@ function initControls() {
     }
 }
 
-// ── FETCH LIVE PRICES ──
+// ── FETCH LIVE PRICES & MACRO REGIME ──
 async function fetchLivePrices() {
     const tickers = stocks.map(s => s.ticker).join(',');
     try {
-        const res = await fetch(`${API_BASE}/api/bulk-prices?tickers=${tickers}`);
-        if (!res.ok) return;
-        const prices = await res.json();
+        const [priceRes, macroRes] = await Promise.all([
+            fetch(`${API_BASE}/api/bulk-prices?tickers=${tickers}`),
+            fetch(`${API_BASE}/api/macro`).catch(() => null)
+        ]);
+
+        if (macroRes && macroRes.ok) {
+            const macro = await macroRes.json();
+            const pillEl = document.getElementById('macro-pill');
+            const textEl = document.getElementById('macro-text');
+            if (pillEl && (macro.pill || macro.regime)) pillEl.textContent = macro.pill || macro.regime;
+            if (textEl && (macro.text || macro.note)) textEl.textContent = macro.text || macro.note;
+        }
+
+        if (!priceRes.ok) return;
+        const prices = await priceRes.json();
         stocks.forEach(s => {
             if (prices[s.ticker] && prices[s.ticker].price) {
                 const p = prices[s.ticker].price;
-                const oldPrice = s.rawPrice;
                 s.rawPrice = p;
                 s.price = `$${p.toFixed(2)}`;
+                s.dataStatus = '🟢 Live';
+                if (s.verdict === 'Loading…') {
+                    s.verdict = 'Live Quote';
+                    s.class = 'verdict-buy';
+                    s.reason = 'Live market price loaded — click to open 60s Decision Cockpit for SEC EDGAR + DCF verdict.';
+                }
                 const el = document.getElementById(`price-${s.ticker}`);
                 if (el) el.textContent = s.price;
-                // Rule A.2: Recalculate target percentage from live price
-                if (s.target2027Raw && p > 0) {
-                    const newPct = ((s.target2027Raw - p) / p * 100).toFixed(0);
-                    const sign = newPct >= 0 ? '+' : '';
-                    s.target2027 = `$${s.target2027Raw} (${sign}${newPct}%)`;
-                    const targetEl = document.querySelector(`[data-ticker="${s.ticker}"] .m-val.green`);
-                    if (targetEl) targetEl.textContent = s.target2027;
-                }
-                // Rule A.4: Card Verdict vs Zone Agreement
-                if (s.buyZone && s.buyZone.includes('–')) {
-                    const parts = s.buyZone.split('–');
-                    const ceiling = parseFloat(parts[1].replace('$', '').replace(',', '').trim());
-                    if (!isNaN(ceiling) && p > ceiling && (s.verdict === 'Strong Buy' || s.verdict === 'Buy')) {
-                        if (s.valuation && s.valuation.toLowerCase().includes('expensive')) {
-                            s.verdict = 'Hold';
-                            s.class = 'verdict-hold';
-                        } else {
-                            s.verdict = 'Wait for Pullback';
-                            s.class = 'verdict-hold';
-                        }
-                        const verdictEl = document.querySelector(`[data-ticker="${s.ticker}"] .stock-verdict`);
-                        if (verdictEl) {
-                            verdictEl.textContent = s.verdict;
-                            verdictEl.className = `stock-verdict ${s.class}`;
-                        }
+                const cardEl = document.querySelector(`[data-ticker="${s.ticker}"]`);
+                if (cardEl) {
+                    const verdictEl = cardEl.querySelector('.stock-verdict');
+                    if (verdictEl) {
+                        verdictEl.textContent = s.verdict;
+                        verdictEl.className = `stock-verdict ${s.class}`;
                     }
+                    const reasonEl = cardEl.querySelector('.stock-reason');
+                    if (reasonEl) reasonEl.textContent = s.reason;
                 }
                 if (s.ticker === 'AVGO') {
                     const spotEl = document.getElementById('spotlight-price');
@@ -908,7 +730,7 @@ function renderDecisionModalContent(data) {
                     <span>•</span>
                     <span style="color:${badgeColor};background:${badgeBg};border:1px solid ${badgeBorder};padding:2px 8px;border-radius:4px;font-weight:700;font-size:0.72rem;">${escapeHtml(badgeText)}</span>
                     <span>•</span>
-                    <span style="color:var(--text-subtle);">${data.lastUpdated || 'October 2026'}</span>
+                    <span style="color:var(--text-subtle);">${data.lastUpdated || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
                 </div>
                 <div style="margin-top:0.4rem;padding:0.35rem 0.7rem;background:rgba(59,130,246,0.08);border-left:3px solid #60a5fa;border-radius:4px;font-size:0.72rem;color:#bfdbfe;display:flex;align-items:center;gap:0.4rem;">
                     <span style="font-weight:800;color:#93c5fd;">⚡ What changed since last run:</span>
@@ -1143,7 +965,7 @@ function renderDecisionModalContent(data) {
                 </div>
                 <div style="font-size:0.64rem;color:var(--text-subtle);margin-top:0.4rem;margin-bottom:0.2rem;display:flex;justify-content:space-between;">
                     <span>Analyst 1y Consensus Targets (${data.finalDecision?.analystCount || 35} analysts)</span>
-                    <span>retrieved ${escapeHtml(data.finalDecision?.analystAsOfDate || data.as_of_date || 'October 2026')}</span>
+                    <span>retrieved ${escapeHtml(data.finalDecision?.analystAsOfDate || data.as_of_date || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }))}</span>
                 </div>
                 <div class="m-targets-trio">
                     <div class="m-target-card bear">

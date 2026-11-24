@@ -1,41 +1,82 @@
-# 📈 Real-Time Stock Market Technical Analysis Dashboard
+# 📈 AI Stock Market Analysis Dashboard
+
+**Live Demo:** https://stock-market-analyzer-dashboard.vercel.app
 
 <p align="left">
-  <img src="https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.9+" />
-  <img src="https://img.shields.io/badge/Yahoo_Finance-Zero_API_Keys-6001D2?style=for-the-badge&logo=yahoo&logoColor=white" alt="Yahoo Finance" />
-  <img src="https://img.shields.io/badge/pandas-Vectorized_Math-150458?style=for-the-badge&logo=pandas&logoColor=white" alt="pandas" />
-  <img src="https://img.shields.io/badge/Chart.js-Dark_Theme_Charts-FF6384?style=for-the-badge&logo=chartdotjs&logoColor=white" alt="Chart.js" />
-  <img src="https://img.shields.io/badge/In--Memory_Cache-2--min_TTL-orange?style=for-the-badge" alt="In-Memory Cache" />
+  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+" />
+  <img src="https://img.shields.io/badge/Flask_+_Gunicorn-WSGI_Backend-000000?style=for-the-badge&logo=flask&logoColor=white" alt="Flask + Gunicorn" />
+  <img src="https://img.shields.io/badge/Market_Data-Zero_Market--Data_API_Keys-6001D2?style=for-the-badge&logo=yahoo&logoColor=white" alt="Zero Market-Data API Keys" />
+  <img src="https://img.shields.io/badge/SEC_EDGAR-Verified_Filings-0F766E?style=for-the-badge" alt="SEC EDGAR" />
+  <img src="https://img.shields.io/badge/Telegram_Bot-Live_Scanner-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Bot" />
 </p>
 
-Most retail market screeners either lock essential financial data behind expensive paywalls or rely on fragile third-party APIs that break under strict rate limits and require complex subscription keys. I built this full-stack market intelligence platform to provide instant, high-throughput equity analysis through a single browser interface—engineered as a self-contained, zero-dependency system that streams live market data with zero API keys and zero external database overhead.
+A full-stack equity intelligence platform combining live market pricing, **SEC EDGAR** financial statement verification, price-invariant **3-scenario DCF valuation**, technical pattern analysis, optional **LLM synthesis** (NVIDIA NIM / Gemini with deterministic fallback), and a companion **Telegram scanner bot** (`@my_stockmarket_scan_bot`).
 
-Under the hood, the backend is powered by a multi-threaded Python server (`ThreadingHTTPServer`) that exposes REST endpoints for market data, charts, and financial metrics. To prevent vendor rate-limiting and maintain sub-second response times, the server utilizes a thread-safe in-memory caching layer with a 2-minute TTL protected by thread locks, eliminating redundant outbound queries during high-frequency scans. When a ticker is requested, the system runs both technical analysis and fundamental analysis—using pandas and SciPy to automate chart pattern recognition and calculate valuation models—to generate clear, actionable Buy/Sell calls with real-time entry and exit signals. On the frontend, a lightweight Vanilla ES6+ single-page application with zero build-tool dependencies consumes the JSON endpoints and renders interactive Chart.js visualizations in under 500ms.
-
-<p align="left">
-  <img src="https://img.shields.io/badge/Python_3.9+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.9+" />
-  <img src="https://img.shields.io/badge/ThreadingHTTPServer-Concurrent_Backend-007ACC?style=flat-square" alt="Concurrent Backend" />
-  <img src="https://img.shields.io/badge/In--Memory_Cache-2--min_TTL-orange?style=flat-square" alt="In-Memory Cache" />
-  <img src="https://img.shields.io/badge/SciPy-Pattern_Recognition-0054FF?style=flat-square&logo=scipy&logoColor=white" alt="SciPy" />
-  <img src="https://img.shields.io/badge/Analysis-Technical_%26_Fundamental-success?style=flat-square" alt="Technical & Fundamental" />
-  <img src="https://img.shields.io/badge/Signals-Buy_%2F_Sell_Calls-blueviolet?style=flat-square" alt="Buy/Sell Calls" />
-  <img src="https://img.shields.io/badge/Frontend-Vanilla_ES6+_%7C_Chart.js-FF6384?style=flat-square&logo=chartdotjs&logoColor=white" alt="Frontend" />
-</p>
+- **Zero Market-Data API Keys:** Live quotes, historical OHLCV, options chains, financials, and SEC filings are pulled via keyless `yfinance` and public SEC EDGAR APIs. Optional environment keys (`TELEGRAM_BOT_TOKEN`, `GEMINI_API_KEY`, `NVIDIA_API_KEY`) enable the Telegram bot and optional LLM narrative layer.
+- **Flask + Gunicorn Backend (`stock_app.py`):** Exposes `/scan/<ticker>`, `/api/decision/<ticker>`, `/api/macro`, and `/api/bulk-prices` with thread-safe in-memory caching (2-minute TTL for bulk prices, 30-minute TTL for macro regime) and per-IP rate limiting (30 req/min on `/scan`).
+- **Real Subsystems:**
+  - **SEC EDGAR Verification (`sec_edgar.py`):** Pulls canonical 10-Q/10-K revenue, diluted EPS, one-off adjusted EPS reconciliation, and shares outstanding directly from SEC company facts.
+  - **Price-Invariant DCF Engine (`dcf_engine.py`, `independent_dcf_validator.py`):** Computes Bear / Base / Bull intrinsic fair values anchored to cash flows and WACC rather than current share price.
+  - **Decision Cockpit (`decision_engine.py`, `script_final.js`):** 8-section executive investment modal with VanillaTilt 3D glass cards and live price hydration.
+  - **Telegram Bot (`stock_bot.py`):** On-demand `/scan <TICKER>` command returning SEC-verified fundamentals, DCF scenarios, whale flow, and strategy backtest validation.
+  - **Audit & Onboarding Harnesses:** Automated data-integrity, DCF invariance, deployment drill, and Playwright UI verification suites.
 
 ---
 
-## 📁 Project Structure
+## ⚙️ Local Setup
 
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Run Flask + Gunicorn dashboard (http://127.0.0.1:8080)
+./bin/run_app.sh
+
+# Optional: run Telegram bot (requires TELEGRAM_BOT_TOKEN in .env)
+python3 stock_bot.py
 ```
+
+---
+
+## 📁 Project Structure (34 Files)
+
+```text
 stock-dashboard/
-├── server.py               # Python HTTP server, handles all 6 API routes
-├── index.html              # Main dashboard page
-├── style.css               # Dark theme with glassmorphism cards
-├── script_final.js         # All the frontend logic — cards, charts, filters, search
-├── generate_detail.js      # Builds the detail modal content (charts, options, earnings)
-├── guide.html              # Beginner's investing guide
-├── calculate_portfolio.py  # CLI tool — plug in your holdings, get P&L
-├── test_playwright.py      # Playwright-based UI smoke test
-├── requirements.txt        # yfinance, pandas
-└── .gitignore
+├── stock_app.py                  # Flask + Gunicorn WSGI server (/scan, /api/decision, /api/macro, /api/bulk-prices)
+├── stock_bot.py                  # Telegram scanner bot (/scan <TICKER>)
+├── sec_edgar.py                  # SEC EDGAR 10-Q/10-K financial & adjusted-EPS extractor
+├── dcf_engine.py                 # Price-invariant 3-scenario (Bear/Base/Bull) DCF engine
+├── decision_engine.py            # 8-section investment decision synthesis engine
+├── ticker_registry.py            # Ticker normalization and alias registry
+├── audit_logger.py               # Structured JSONL scan audit logger
+├── calculate_portfolio.py        # CLI portfolio P&L calculator
+├── index.html                    # Main 3D glass-card dashboard UI
+├── stock_dashboard.html          # Alternate dashboard layout
+├── guide.html                    # Investing fundamentals guide
+├── style.css                     # Dark-theme glassmorphism stylesheet
+├── script_final.js               # Live price hydration, search/filter, and 8-section Decision Cockpit modal
+├── generate_detail.js            # Legacy detail modal renderer
+├── golden_a4.js                  # Golden test fixture (A4)
+├── golden_e8.js                  # Golden test fixture (E8)
+├── golden_l6.js                  # Golden test fixture (L6)
+├── bin/
+│   ├── run_app.sh                # Gunicorn background service runner
+│   └── service_manager.sh        # macOS LaunchAgent service helper
+├── tests/
+│   └── test_deployment_drills.py # Deployment and endpoint drill tests
+├── acceptance_gate_battery.py    # Acceptance gate verification battery
+├── audit_battery.py              # Security & data integrity audit battery
+├── independent_dcf_validator.py  # Independent DCF price-invariance validator
+├── onboarding_gate.py            # Onboarding integrity checks
+├── test_audit_fixes.py           # Regression suite for audit fixes
+├── test_playwright.py            # Playwright browser smoke test
+├── validation_harness.py         # End-to-end validation harness
+├── requirements.txt              # Python dependencies
+├── Procfile                      # Gunicorn process declaration
+├── render.yaml                   # Render deployment blueprint
+├── vercel.json                   # Vercel static deployment config
+├── .vercelignore                 # Vercel ignore rules
+├── .gitignore                    # Git ignore rules (.env, venv, logs, caches)
+└── README.md                     # Project documentation
 ```

@@ -2233,13 +2233,14 @@ def perform_audited_scan(ticker: str, as_of_date: Optional[Any] = None) -> Dict[
             score -= 8
             bear_reasons.append(f"Revenue contracting ({DataSanitizer.fmt_pct(c['revenueGrowth'])} YoY)")
 
-        if "BULLISH" in trend:
+        trend_upper = trend.upper()
+        if "BULLISH" in trend_upper:
             score += 8
             bull_reasons.append("Confirmed uptrend (Price above rising 50-day SMA)")
-        elif "BEARISH" in trend:
+        elif "BEARISH" in trend_upper:
             score -= 8
             bear_reasons.append("Confirmed downtrend (Price below falling 50-day SMA)")
-        elif "PULLBACK" in trend:
+        elif "PULLBACK" in trend_upper:
             score -= 3
             bear_reasons.append("Pullback in progress toward key moving averages")
 
@@ -2821,7 +2822,7 @@ def compute_integrity_audit(
 
     # Check 2: Label Consistency (Rule 5)
     label_issues = []
-    if rsi_val > 70.0 and rsi_val < 30.0:
+    if rsi_val > 100.0 or rsi_val < 0.0:
         label_issues.append("RSI out of bounds")
     if next_earn_str and "to be announced" not in next_earn_str.lower() and "tba" not in next_earn_str.lower():
         match = re.search(r'([A-Za-z]+ \d{1,2}, \d{4})', next_earn_str)
@@ -3791,11 +3792,15 @@ def api_decision():
 @app.route("/api/macro")
 def api_macro():
     try:
-        return jsonify(get_macro_regime())
+        raw = get_macro_regime()
+        payload = {k: v for k, v in raw.items() if k != "history"}
+        payload["pill"] = payload.get("regime", "NEUTRAL ⚪")
+        payload["text"] = payload.get("note", "Benchmark context temporarily unavailable.")
+        return jsonify(payload)
     except Exception:
         return jsonify({
-            "pill": "BULL MARKET 🟢 (Risk-On)",
-            "text": "S&P 500 is trading above rising 50-day and 200-day moving averages. Favorable macro backdrop for disciplined equity entries."
+            "pill": "NEUTRAL ⚪",
+            "text": "Benchmark context temporarily unavailable."
         })
 
 
@@ -3844,8 +3849,20 @@ def api_bulk_prices():
     return jsonify(PRICE_CACHE or prices)
 
 
+ALLOWED_STATIC_EXTENSIONS = {
+    ".html", ".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp", ".woff", ".woff2"
+}
+
+
 @app.route("/<path:filename>")
 def serve_static(filename):
+    from flask import abort
+    parts = filename.replace("\\", "/").split("/")
+    if any(p.startswith(".") or p == ".." for p in parts):
+        abort(403)
+    _, ext = os.path.splitext(filename.lower())
+    if ext not in ALLOWED_STATIC_EXTENSIONS:
+        abort(403)
     return send_from_directory(BASE_DIR, filename)
 
 

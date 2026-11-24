@@ -1,5 +1,5 @@
 let isHeatmapView = false;
-const stocks = [
+const legacyDetailStocks = [
     { ticker: 'NVDA', name: 'NVIDIA', price: '$0.00', verdict: 'Strong Buy', reason: 'Undisputed king of AI GPUs, massive margins, explosive growth.', class: 'verdict-strong-buy', delay: '0.0s', marketCap: 3000 },
     { ticker: 'MU', name: 'Micron Technology', price: '$0.00', verdict: 'Buy', reason: 'Crucial supplier of high-bandwidth memory (HBM) for AI data centers.', class: 'verdict-buy', delay: '0.05s', marketCap: 150 },
     { ticker: 'NOW', name: 'ServiceNow', price: '$0.00', verdict: 'Strong Buy', reason: 'Best SaaS moat, 44% FCF margin, down 36% YTD.', class: 'verdict-strong-buy', delay: '0.1s', marketCap: 160 },

@@ -73,7 +73,29 @@ except Exception:
     pass
 
 # --- CONFIGURATION ---
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+def _load_env_token() -> str:
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    if token:
+        return token
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if os.path.exists(env_path):
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, v = line.split("=", 1)
+                    if k.strip() == "TELEGRAM_BOT_TOKEN":
+                        v = v.strip().strip('"').strip("'")
+                        if v:
+                            os.environ["TELEGRAM_BOT_TOKEN"] = v
+                            return v
+        except Exception:
+            pass
+    return ""
+
+TELEGRAM_BOT_TOKEN = _load_env_token()
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
@@ -535,7 +557,7 @@ async def scan_stock(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 msg += f"• <b>Quarterly Revenue:</b> <code>${sec_rev/1e9:.2f}B</code> [SEC VERIFIED]\n"
             if sec_eps is not None:
                 if adj_data.get("has_material_one_off"):
-                    msg += f"• <b>Quarterly Diluted EPS:</b> GAAP <code>${adj_data['gaap_eps']:.2f}</code> | Adj Operating <code>${adj_data['adj_eps']:.2f}</code> [SEC VERIFIED]{one_off_disclosure}\n"
+                    msg += f"• <b>Quarterly Diluted EPS:</b> GAAP <code>${adj_data['gaap_eps']:.2f}</code> | Adj Operating <code>${adj_data['adjusted_eps']:.2f}</code> [SEC VERIFIED]{one_off_disclosure}\n"
                 else:
                     msg += f"• <b>Quarterly Diluted EPS:</b> <code>${sec_eps:.2f}</code> [SEC VERIFIED]\n"
         msg += f"• <b>Current Price:</b> <code>${price:,.2f}</code> ({time_label}) | <b>Market Cap:</b> <code>{market_cap}</code>\n"
@@ -689,7 +711,7 @@ async def scan_stock(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
-    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    token = _load_env_token()
     if not token:
         logging.critical("FATAL: TELEGRAM_BOT_TOKEN environment variable is empty. Bot cannot start.")
         sys.exit("FATAL: TELEGRAM_BOT_TOKEN is empty. Set TELEGRAM_BOT_TOKEN before launching stock_bot.")
